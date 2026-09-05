@@ -4,9 +4,8 @@ import type { Theme, ThemeId } from './types';
  * 21 refined themes. All procedural (no assets), all system fonts
  * (canvas export never misses a webfont). Design notes:
  * - Charmera shots exactly fill their cell, so differentiation lives in
- *   the MAT (frame around each photo), the GUTTERS, and the OUTER FRAME.
+ *   the MAT (frame around each photo) and the GUTTERS.
  * - Gaps are generous so the background breathes through.
- * - Every theme has a signature outer frame rule on the pad band.
  */
 export const THEMES: Record<ThemeId, Theme> = {
   darkroom: {
@@ -20,7 +19,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#4a1515', borderWidth: 2, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(255,217,217,0.4)',
     mat: 8, matBottom: 8,
-    frameColor: '#7f1d1d', frameWidth: 6, frameInset: 36, frameDouble: false,
   },
   polaroid: {
     id: 'polaroid', name: 'Polaroid Fun', tagline: 'Thick cream + wiggle', category: 'Retro',
@@ -33,7 +31,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#d8c9a8', borderWidth: 2, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(91,74,58,0.45)',
     mat: 44, matBottom: 44,
-    frameColor: '#b8a67e', frameWidth: 5, frameInset: 38, frameDouble: true,
   },
   gallery: {
     id: 'gallery', name: 'Cream Gallery', tagline: 'Calm museum wall', category: 'Elegant',
@@ -46,7 +43,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#e2d9c4', borderWidth: 2, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(61,58,52,0.4)',
     mat: 20, matBottom: 20,
-    frameColor: '#b8ab8e', frameWidth: 4, frameInset: 56, frameDouble: true,
   },
   y2k: {
     id: 'y2k', name: 'Y2K Chrome', tagline: 'Millennium shiny', category: 'Retro',
@@ -59,7 +55,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#7dd3fc', borderWidth: 3, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(0,240,255,0.4)',
     mat: 12, matBottom: 12,
-    frameColor: '#00c8dd', frameWidth: 6, frameInset: 36, frameDouble: false,
   },
   playground: {
     id: 'playground', name: 'Playground', tagline: 'Bold + bouncy', category: 'Playful',
@@ -72,7 +67,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#1c1c1e', borderWidth: 4, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(28,28,30,0.4)',
     mat: 24, matBottom: 24,
-    frameColor: '#1c1c1e', frameWidth: 8, frameInset: 38, frameDouble: false,
   },
   'midnight-neon': {
     id: 'midnight-neon', name: 'Midnight Neon', tagline: 'City lights after dark', category: 'Dark',
@@ -85,7 +79,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#2b3f8f', borderWidth: 2, shadow: false, pattern: 'dots',
     placeholderColor: 'rgba(125,249,255,0.4)',
     mat: 12, matBottom: 12,
-    frameColor: '#3d6bff', frameWidth: 5, frameInset: 38, frameDouble: false,
   },
   espresso: {
     id: 'espresso', name: 'Espresso', tagline: 'Warm coffee-house brown', category: 'Elegant',
@@ -98,7 +91,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#8a6647', borderWidth: 2, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(250,243,232,0.4)',
     mat: 24, matBottom: 24,
-    frameColor: '#d9b98c', frameWidth: 5, frameInset: 48, frameDouble: true,
   },
   forest: {
     id: 'forest', name: 'Forest Walk', tagline: 'Moss + pine quiet', category: 'Nature',
@@ -111,7 +103,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#5c7350', borderWidth: 2, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(244,241,228,0.45)',
     mat: 20, matBottom: 20,
-    frameColor: '#9db38a', frameWidth: 5, frameInset: 44, frameDouble: false,
   },
   ocean: {
     id: 'ocean', name: 'Ocean Postcard', tagline: 'Salt air + deep blue', category: 'Nature',
@@ -124,7 +115,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#bfe3e8', borderWidth: 3, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(242,248,250,0.5)',
     mat: 16, matBottom: 16,
-    frameColor: '#ffffff', frameWidth: 6, frameInset: 40, frameDouble: false,
   },
   desert: {
     id: 'desert', name: 'Desert Sun', tagline: 'Sand + terracotta heat', category: 'Nature',
@@ -137,7 +127,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#a85f28', borderWidth: 2, shadow: true, pattern: 'dots',
     placeholderColor: 'rgba(124,63,18,0.4)',
     mat: 20, matBottom: 20,
-    frameColor: '#7c3f12', frameWidth: 6, frameInset: 44, frameDouble: false,
   },
   sakura: {
     id: 'sakura', name: 'Sakura', tagline: 'Soft pink blossom', category: 'Light',
@@ -150,7 +139,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#e5aec0', borderWidth: 2, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(143,59,86,0.4)',
     mat: 24, matBottom: 24,
-    frameColor: '#c26a8a', frameWidth: 5, frameInset: 46, frameDouble: true,
   },
   'mono-ink': {
     id: 'mono-ink', name: 'Mono Ink', tagline: 'Strict black + white', category: 'Elegant',
@@ -163,7 +151,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#111111', borderWidth: 3, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(17,17,17,0.4)',
     mat: 10, matBottom: 10,
-    frameColor: '#111111', frameWidth: 8, frameInset: 32, frameDouble: false,
   },
   blueprint: {
     id: 'blueprint', name: 'Blueprint', tagline: 'Drafting-table blue', category: 'Retro',
@@ -176,7 +163,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#9cc3ee', borderWidth: 2, shadow: false, pattern: 'dots',
     placeholderColor: 'rgba(214,231,255,0.45)',
     mat: 12, matBottom: 12,
-    frameColor: '#9cc3ee', frameWidth: 5, frameInset: 36, frameDouble: false,
   },
   newsprint: {
     id: 'newsprint', name: 'Newsprint', tagline: 'Morning-paper columns', category: 'Retro',
@@ -189,7 +175,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#8a8271', borderWidth: 2, shadow: false, pattern: 'stripes',
     placeholderColor: 'rgba(34,34,34,0.4)',
     mat: 8, matBottom: 8,
-    frameColor: '#4a4438', frameWidth: 4, frameInset: 40, frameDouble: true,
   },
   noir: {
     id: 'noir', name: 'Noir Cinema', tagline: 'Black-bar movie stills', category: 'Dark',
@@ -202,7 +187,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#333333', borderWidth: 2, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(232,228,216,0.4)',
     mat: 14, matBottom: 14,
-    frameColor: '#e8e4d8', frameWidth: 4, frameInset: 30, frameDouble: false,
   },
   disco: {
     id: 'disco', name: 'Disco Fever', tagline: 'Mirror-ball purple', category: 'Playful',
@@ -215,7 +199,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#c86bfa', borderWidth: 3, shadow: false, pattern: 'dots',
     placeholderColor: 'rgba(255,214,245,0.45)',
     mat: 12, matBottom: 12,
-    frameColor: '#f107a3', frameWidth: 6, frameInset: 38, frameDouble: false,
   },
   candy: {
     id: 'candy', name: 'Candy Pop', tagline: 'Bubblegum bright', category: 'Playful',
@@ -228,7 +211,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#ff8fb8', borderWidth: 3, shadow: true, pattern: 'dots',
     placeholderColor: 'rgba(194,24,91,0.4)',
     mat: 32, matBottom: 32,
-    frameColor: '#c2185b', frameWidth: 6, frameInset: 40, frameDouble: false,
   },
   pastel: {
     id: 'pastel', name: 'Pastel Dream', tagline: 'Cloud-soft haze', category: 'Light',
@@ -241,7 +223,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#cfcfe8', borderWidth: 2, shadow: true, pattern: 'none',
     placeholderColor: 'rgba(107,107,143,0.4)',
     mat: 28, matBottom: 28,
-    frameColor: '#9aa3c7', frameWidth: 4, frameInset: 52, frameDouble: true,
   },
   bauhaus: {
     id: 'bauhaus', name: 'Bauhaus', tagline: 'Primary shapes only', category: 'Playful',
@@ -254,7 +235,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#1a1a1a', borderWidth: 5, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(26,26,26,0.4)',
     mat: 36, matBottom: 36,
-    frameColor: '#1a1a1a', frameWidth: 10, frameInset: 34, frameDouble: false,
   },
   chalkboard: {
     id: 'chalkboard', name: 'Chalkboard', tagline: 'Classroom chalk dust', category: 'Dark',
@@ -267,7 +247,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#c9a86a', borderWidth: 6, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(245,242,228,0.4)',
     mat: 28, matBottom: 28,
-    frameColor: '#c9a86a', frameWidth: 6, frameInset: 38, frameDouble: true,
   },
   golden: {
     id: 'golden', name: 'Golden Hour', tagline: 'Warm sunset glow', category: 'Nature',
@@ -280,7 +259,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     borderColor: '#e8a33d', borderWidth: 2, shadow: false, pattern: 'none',
     placeholderColor: 'rgba(255,227,163,0.45)',
     mat: 16, matBottom: 16,
-    frameColor: '#ffe3a3', frameWidth: 6, frameInset: 40, frameDouble: false,
   },
 };
 

@@ -206,22 +206,6 @@ export function drawSheet(
   if (theme.grain) drawGrain(ctx, W, H);
   if (theme.vignette) drawVignette(ctx, W, H);
 
-  // Outer sheet frame: bounding rule on the pad band, drawn last so it
-  // always sits on top — the theme's signature.
-  if (theme.frameColor && theme.frameWidth > 0) {
-    const f = theme.frameInset;
-    ctx.save();
-    ctx.strokeStyle = theme.frameColor;
-    ctx.lineWidth = theme.frameWidth;
-    ctx.strokeRect(f, f, W - f * 2, H - f * 2);
-    if (theme.frameDouble) {
-      const f2 = f + theme.frameWidth * 3;
-      ctx.lineWidth = Math.max(2, theme.frameWidth / 2);
-      ctx.strokeRect(f2, f2, W - f2 * 2, H - f2 * 2);
-    }
-    ctx.restore();
-  }
-
   return { width: W, height: H };
 }
 

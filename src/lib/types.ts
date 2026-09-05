@@ -42,9 +42,4 @@ export interface Theme {
    *  Makes the cellBg a visible frame around every photo. */
   mat: number;
   matBottom: number;
-  /** Outer sheet frame: decorative rule on the pad band around the whole sheet. */
-  frameColor: string | null;
-  frameWidth: number;
-  frameInset: number;
-  frameDouble: boolean;
 }
