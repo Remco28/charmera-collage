@@ -156,14 +156,19 @@ export function drawSheet(
     ctx.restore();
 
     if (slot) {
-      // contain-fit image into CELL_W x CELL_H area (top part of card)
+      // contain-fit image into the mat frame (top part of card, inset by mat).
+      // Zero cropping ever — the mat just makes cellBg a visible frame.
+      const px = x + theme.mat;
+      const py = y + theme.mat;
+      const pw = CELL_W - theme.mat * 2;
+      const ph = CELL_H - theme.mat - theme.matBottom;
       const bw = slot.bitmap.width;
       const bh = slot.bitmap.height;
-      const scale = Math.min(CELL_W / bw, CELL_H / bh);
+      const scale = Math.min(pw / bw, ph / bh);
       const dw = Math.floor(bw * scale);
       const dh = Math.floor(bh * scale);
-      const dx = x + Math.floor((CELL_W - dw) / 2);
-      const dy = y + Math.floor((CELL_H - dh) / 2);
+      const dx = px + Math.floor((pw - dw) / 2);
+      const dy = py + Math.floor((ph - dh) / 2);
       ctx.save();
       roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.clip();
@@ -200,6 +205,22 @@ export function drawSheet(
 
   if (theme.grain) drawGrain(ctx, W, H);
   if (theme.vignette) drawVignette(ctx, W, H);
+
+  // Outer sheet frame: bounding rule on the pad band, drawn last so it
+  // always sits on top — the theme's signature.
+  if (theme.frameColor && theme.frameWidth > 0) {
+    const f = theme.frameInset;
+    ctx.save();
+    ctx.strokeStyle = theme.frameColor;
+    ctx.lineWidth = theme.frameWidth;
+    ctx.strokeRect(f, f, W - f * 2, H - f * 2);
+    if (theme.frameDouble) {
+      const f2 = f + theme.frameWidth * 3;
+      ctx.lineWidth = Math.max(2, theme.frameWidth / 2);
+      ctx.strokeRect(f2, f2, W - f2 * 2, H - f2 * 2);
+    }
+    ctx.restore();
+  }
 
   return { width: W, height: H };
 }

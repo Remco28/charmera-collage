@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import { autoGrid } from './lib/layout';
 import { drawSheet, exportSheet } from './lib/render';
@@ -20,6 +21,36 @@ async function decodeFile(file: File): Promise<ImageBitmap> {
   }
 }
 
+/** Collapsible panel so Theme picker and Photo tray stop competing for space. */
+function Collapsible({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-neutral-900/50">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-neutral-800/60"
+      >
+        <span className={`text-xs transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+        <span className="text-sm font-bold uppercase tracking-widest text-neutral-300">{title}</span>
+        <span className="ml-auto min-w-0 truncate text-xs text-neutral-500">{summary}</span>
+      </button>
+      {open && <div className="px-2 pb-2">{children}</div>}
+    </div>
+  );
+}
+
 export default function App() {
   const [slots, setSlots] = useState<PhotoSlot[]>([]);
   const [themeId, setThemeId] = useState<ThemeId>('darkroom');
@@ -29,6 +60,8 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [decoding, setDecoding] = useState<{ done: number; total: number } | null>(null);
   const [format, setFormat] = useState<'png' | 'jpeg'>('png');
+  const [openTheme, setOpenTheme] = useState(true);
+  const [openPhotos, setOpenPhotos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -101,17 +134,7 @@ export default function App() {
   const setCaption = (id: string, caption: string) =>
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, caption } : s)));
 
-  /** Simple reorder: move slot left/right in sheet order. Preview redraws automatically. */
-  const moveSlot = (id: string, dir: -1 | 1) =>
-    setSlots((prev) => {
-      const i = prev.findIndex((s) => s.id === id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= prev.length) return prev;
-      const copy = [...prev];
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-      return copy;
-    });
-
+  /** Simple reorder via drag: tray order is sheet order. Preview redraws automatically. */
   const dropReorder = (targetId: string) =>
     setSlots((prev) => {
       if (!dragId || dragId === targetId) return prev;
@@ -242,11 +265,13 @@ export default function App() {
           {error && <p className="rounded-xl bg-red-950 px-4 py-3 text-sm text-red-200">{error}</p>}
 
           {/* Theme gallery with category filter */}
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400">
-              Theme ({THEME_LIST.length}) · captions match automatically
-            </h2>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+          <Collapsible
+            title={`Theme (${THEME_LIST.length})`}
+            summary={<>{theme.name} ✓ · captions auto-match</>}
+            open={openTheme}
+            onToggle={() => setOpenTheme((v) => !v)}
+          >
+            <div className="mt-1 flex flex-wrap gap-1.5">
               {THEME_CATEGORIES.map((c) => (
                 <button
                   key={c}
@@ -276,15 +301,17 @@ export default function App() {
                 </button>
               ))}
             </div>
-          </div>
+          </Collapsible>
 
-          {/* Photo tray with simple reorder */}
+          {/* Photo tray — drag to reorder, captions per photo */}
           {slots.length > 0 && (
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400">
-                Photos ({slots.length}) · drag or ← → to reorder sheet
-              </h2>
-              <ul className="mt-2 max-h-96 space-y-2 overflow-auto pr-1">
+            <Collapsible
+              title={`Photos (${slots.length})`}
+              summary={<>{grid.cols}×{grid.rows} sheet · drag rows to reorder</>}
+              open={openPhotos}
+              onToggle={() => setOpenPhotos((v) => !v)}
+            >
+              <ul className="mt-1 max-h-96 space-y-2 overflow-auto pr-1">
                 {slots.map((s, i) => (
                   <li
                     key={s.id}
@@ -306,19 +333,13 @@ export default function App() {
                         className="mt-1 w-full rounded-lg bg-neutral-800 px-2 py-1.5 text-sm outline-none placeholder:text-neutral-500 focus:ring-2 focus:ring-amber-300"
                       />
                     </div>
-                    <div className="flex shrink-0 flex-col gap-1">
-                      <div className="flex gap-1">
-                        <button onClick={() => moveSlot(s.id, -1)} disabled={i === 0} aria-label="Move earlier" className="rounded-md bg-neutral-800 px-1.5 text-xs disabled:opacity-30 hover:bg-neutral-700">←</button>
-                        <button onClick={() => moveSlot(s.id, 1)} disabled={i === slots.length - 1} aria-label="Move later" className="rounded-md bg-neutral-800 px-1.5 text-xs disabled:opacity-30 hover:bg-neutral-700">→</button>
-                      </div>
-                      <button onClick={() => removeSlot(s.id)} aria-label={`Remove ${s.file.name}`} className="rounded-md bg-neutral-800 px-1.5 text-xs text-neutral-400 hover:bg-red-900 hover:text-white">
-                        ✕ remove
-                      </button>
-                    </div>
+                    <button onClick={() => removeSlot(s.id)} aria-label={`Remove ${s.file.name}`} title="Remove photo" className="shrink-0 rounded-full px-2 py-1 text-lg font-black leading-none text-red-500 hover:bg-red-950 hover:text-red-300">
+                      ✕
+                    </button>
                   </li>
                 ))}
               </ul>
-            </div>
+            </Collapsible>
           )}
         </section>
 

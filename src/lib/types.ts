@@ -38,4 +38,13 @@ export interface Theme {
   shadow: boolean;
   pattern: 'none' | 'dots' | 'stripes';
   placeholderColor: string;
+  /** Inner mat: photo is inset by mat on top/left/right, matBottom below.
+   *  Makes the cellBg a visible frame around every photo. */
+  mat: number;
+  matBottom: number;
+  /** Outer sheet frame: decorative rule on the pad band around the whole sheet. */
+  frameColor: string | null;
+  frameWidth: number;
+  frameInset: number;
+  frameDouble: boolean;
 }
