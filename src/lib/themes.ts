@@ -9,21 +9,21 @@ import type { Theme, ThemeId } from './types';
  */
 export const THEMES: Record<ThemeId, Theme> = {
   darkroom: {
-    id: 'darkroom', name: 'Darkroom', tagline: 'Contact-sheet red glow', category: 'Dark',
-    bg: ['#160404', '#2b0a0a'], cellBg: '#0e0202',
-    gap: 48, outerPad: 84, radius: 6, captionHeight: 110,
+    id: 'darkroom', name: 'Darkroom', tagline: 'Classic contact sheet', category: 'Dark',
+    bg: ['#0b0705', '#1c0f0a'], cellBg: '#000000',
+    gap: 48, outerPad: 114, radius: 2, captionHeight: 110,
     captionFont: '600 44px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-    captionColor: '#ffd9d9', captionBg: null,
+    captionColor: '#f5ead2', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,
-    swatch: 'linear-gradient(135deg,#160404,#7f1d1d)',
-    borderColor: '#4a1515', borderWidth: 2, shadow: false, pattern: 'none',
-    placeholderColor: 'rgba(255,217,217,0.4)',
-    mat: 8, matBottom: 8,
+    swatch: 'linear-gradient(135deg,#0b0705,#7f1d1d)',
+    borderColor: '#efe6d0', borderWidth: 4, shadow: false, pattern: 'none',
+    placeholderColor: 'rgba(245,234,210,0.4)',
+    mat: 12, matBottom: 12,
   },
   polaroid: {
     id: 'polaroid', name: 'Polaroid Fun', tagline: 'Thick cream + wiggle', category: 'Retro',
     bg: ['#f5efe0', '#e9dcc2'], cellBg: '#fffdf5',
-    gap: 80, outerPad: 92, radius: 10, captionHeight: 150,
+    gap: 80, outerPad: 124, radius: 10, captionHeight: 150,
     captionFont: 'italic 52px "Comic Sans MS", "Segoe Print", "Bradley Hand", cursive',
     captionColor: '#5b4a3a', captionBg: null,
     grain: false, vignette: false, jitterDeg: 1.8,
@@ -35,7 +35,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   gallery: {
     id: 'gallery', name: 'Cream Gallery', tagline: 'Calm museum wall', category: 'Elegant',
     bg: ['#faf7f0', '#efe7d6'], cellBg: '#ffffff',
-    gap: 96, outerPad: 120, radius: 4, captionHeight: 130,
+    gap: 96, outerPad: 162, radius: 4, captionHeight: 130,
     captionFont: 'italic 46px Georgia, "Times New Roman", serif',
     captionColor: '#3d3a34', captionBg: null,
     grain: false, vignette: false, jitterDeg: 0,
@@ -47,7 +47,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   y2k: {
     id: 'y2k', name: 'Y2K Chrome', tagline: 'Millennium shiny', category: 'Retro',
     bg: ['#dfe6f5', '#aeb9d6', '#e8edf9'], cellBg: '#0b1020',
-    gap: 54, outerPad: 86, radius: 18, captionHeight: 120,
+    gap: 54, outerPad: 116, radius: 18, captionHeight: 120,
     captionFont: '700 44px "Courier New", ui-monospace, monospace',
     captionColor: '#00f0ff', captionBg: '#0b1020',
     grain: true, vignette: false, jitterDeg: 0,
@@ -59,7 +59,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   playground: {
     id: 'playground', name: 'Playground', tagline: 'Bold + bouncy', category: 'Playful',
     bg: ['#ffd93d', '#ff8fab', '#6bcbff'], cellBg: '#ffffff',
-    gap: 68, outerPad: 94, radius: 28, captionHeight: 130,
+    gap: 68, outerPad: 128, radius: 28, captionHeight: 130,
     captionFont: '800 50px Verdana, system-ui, sans-serif',
     captionColor: '#1c1c1e', captionBg: '#ffffff',
     grain: false, vignette: false, jitterDeg: 0,
@@ -71,7 +71,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   'midnight-neon': {
     id: 'midnight-neon', name: 'Midnight Neon', tagline: 'City lights after dark', category: 'Dark',
     bg: ['#070b1a', '#101b3d'], cellBg: '#0c1226',
-    gap: 52, outerPad: 88, radius: 16, captionHeight: 120,
+    gap: 52, outerPad: 118, radius: 16, captionHeight: 120,
     captionFont: '700 44px ui-monospace, SFMono-Regular, Menlo, monospace',
     captionColor: '#7df9ff', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,
@@ -83,7 +83,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   espresso: {
     id: 'espresso', name: 'Espresso', tagline: 'Warm coffee-house brown', category: 'Elegant',
     bg: ['#2a1c12', '#4a2f1d'], cellBg: '#faf3e8',
-    gap: 76, outerPad: 106, radius: 12, captionHeight: 130,
+    gap: 76, outerPad: 144, radius: 12, captionHeight: 130,
     captionFont: '46px Georgia, "Times New Roman", serif',
     captionColor: '#4a2f1d', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,
@@ -95,7 +95,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   forest: {
     id: 'forest', name: 'Forest Walk', tagline: 'Moss + pine quiet', category: 'Nature',
     bg: ['#1c2b1f', '#33482f'], cellBg: '#f4f1e4',
-    gap: 72, outerPad: 98, radius: 20, captionHeight: 130,
+    gap: 72, outerPad: 132, radius: 20, captionHeight: 130,
     captionFont: 'italic 48px Georgia, serif',
     captionColor: '#2c3a24', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,
@@ -107,7 +107,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   ocean: {
     id: 'ocean', name: 'Ocean Postcard', tagline: 'Salt air + deep blue', category: 'Nature',
     bg: ['#0a2e4f', '#1286a8'], cellBg: '#f2f8fa',
-    gap: 62, outerPad: 94, radius: 22, captionHeight: 125,
+    gap: 62, outerPad: 128, radius: 22, captionHeight: 125,
     captionFont: '700 46px Verdana, system-ui, sans-serif',
     captionColor: '#0a2e4f', captionBg: null,
     grain: false, vignette: false, jitterDeg: 0,
@@ -119,7 +119,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   desert: {
     id: 'desert', name: 'Desert Sun', tagline: 'Sand + terracotta heat', category: 'Nature',
     bg: ['#e8b04b', '#c96f2f'], cellBg: '#fdf6e3',
-    gap: 68, outerPad: 100, radius: 14, captionHeight: 130,
+    gap: 68, outerPad: 136, radius: 14, captionHeight: 130,
     captionFont: '700 46px Georgia, serif',
     captionColor: '#7c3f12', captionBg: null,
     grain: true, vignette: false, jitterDeg: 0,
@@ -131,7 +131,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   sakura: {
     id: 'sakura', name: 'Sakura', tagline: 'Soft pink blossom', category: 'Light',
     bg: ['#fdf0f3', '#f6cdd8'], cellBg: '#ffffff',
-    gap: 76, outerPad: 102, radius: 24, captionHeight: 130,
+    gap: 76, outerPad: 138, radius: 24, captionHeight: 130,
     captionFont: 'italic 48px Georgia, serif',
     captionColor: '#8f3b56', captionBg: null,
     grain: false, vignette: false, jitterDeg: 0,
@@ -143,7 +143,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   'mono-ink': {
     id: 'mono-ink', name: 'Mono Ink', tagline: 'Strict black + white', category: 'Elegant',
     bg: ['#f4f4f4', '#d9d9d9'], cellBg: '#111111',
-    gap: 44, outerPad: 80, radius: 2, captionHeight: 110,
+    gap: 44, outerPad: 108, radius: 2, captionHeight: 110,
     captionFont: '600 42px Helvetica, Arial, sans-serif',
     captionColor: '#f4f4f4', captionBg: null,
     grain: true, vignette: false, jitterDeg: 0,
@@ -155,7 +155,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   blueprint: {
     id: 'blueprint', name: 'Blueprint', tagline: 'Drafting-table blue', category: 'Retro',
     bg: ['#123a6d', '#1d5aa8'], cellBg: '#0e2c55',
-    gap: 52, outerPad: 86, radius: 4, captionHeight: 115,
+    gap: 52, outerPad: 116, radius: 4, captionHeight: 115,
     captionFont: '500 42px "Courier New", ui-monospace, monospace',
     captionColor: '#d6e7ff', captionBg: null,
     grain: false, vignette: false, jitterDeg: 0,
@@ -167,7 +167,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   newsprint: {
     id: 'newsprint', name: 'Newsprint', tagline: 'Morning-paper columns', category: 'Retro',
     bg: ['#ece5d3', '#d9cfb4'], cellBg: '#faf8f0',
-    gap: 46, outerPad: 90, radius: 2, captionHeight: 120,
+    gap: 46, outerPad: 122, radius: 2, captionHeight: 120,
     captionFont: '700 40px Georgia, "Times New Roman", serif',
     captionColor: '#222222', captionBg: null,
     grain: true, vignette: false, jitterDeg: 0,
@@ -179,7 +179,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   noir: {
     id: 'noir', name: 'Noir Cinema', tagline: 'Black-bar movie stills', category: 'Dark',
     bg: ['#000000', '#161616'], cellBg: '#000000',
-    gap: 58, outerPad: 74, radius: 2, captionHeight: 120,
+    gap: 58, outerPad: 136, radius: 2, captionHeight: 120,
     captionFont: '500 44px Helvetica, Arial, sans-serif',
     captionColor: '#e8e4d8', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,
@@ -191,7 +191,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   disco: {
     id: 'disco', name: 'Disco Fever', tagline: 'Mirror-ball purple', category: 'Playful',
     bg: ['#2b0a4e', '#7b2ff7', '#f107a3'], cellBg: '#14082b',
-    gap: 56, outerPad: 90, radius: 20, captionHeight: 125,
+    gap: 56, outerPad: 122, radius: 20, captionHeight: 125,
     captionFont: '800 46px Verdana, system-ui, sans-serif',
     captionColor: '#ffd6f5', captionBg: null,
     grain: true, vignette: false, jitterDeg: 0,
@@ -203,7 +203,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   candy: {
     id: 'candy', name: 'Candy Pop', tagline: 'Bubblegum bright', category: 'Playful',
     bg: ['#ffe3ec', '#ffc2d8'], cellBg: '#ffffff',
-    gap: 72, outerPad: 96, radius: 30, captionHeight: 130,
+    gap: 72, outerPad: 130, radius: 30, captionHeight: 130,
     captionFont: '800 48px "Comic Sans MS", "Chalkboard SE", cursive',
     captionColor: '#c2185b', captionBg: null,
     grain: false, vignette: false, jitterDeg: 1.2,
@@ -215,7 +215,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   pastel: {
     id: 'pastel', name: 'Pastel Dream', tagline: 'Cloud-soft haze', category: 'Light',
     bg: ['#e6e6fa', '#cfe8ef', '#fde8ef'], cellBg: '#ffffff',
-    gap: 84, outerPad: 110, radius: 26, captionHeight: 125,
+    gap: 84, outerPad: 150, radius: 26, captionHeight: 125,
     captionFont: 'italic 46px Georgia, serif',
     captionColor: '#6b6b8f', captionBg: null,
     grain: false, vignette: false, jitterDeg: 0,
@@ -227,7 +227,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   bauhaus: {
     id: 'bauhaus', name: 'Bauhaus', tagline: 'Primary shapes only', category: 'Playful',
     bg: ['#f2efe6', '#e2dccb'], cellBg: '#ffffff',
-    gap: 52, outerPad: 88, radius: 2, captionHeight: 120,
+    gap: 52, outerPad: 118, radius: 2, captionHeight: 120,
     captionFont: '800 44px Helvetica, Arial, sans-serif',
     captionColor: '#1a1a1a', captionBg: '#f2efe6',
     grain: false, vignette: false, jitterDeg: 0,
@@ -239,7 +239,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   chalkboard: {
     id: 'chalkboard', name: 'Chalkboard', tagline: 'Classroom chalk dust', category: 'Dark',
     bg: ['#1e2b26', '#2e4038'], cellBg: '#223028',
-    gap: 62, outerPad: 94, radius: 8, captionHeight: 130,
+    gap: 62, outerPad: 128, radius: 8, captionHeight: 130,
     captionFont: '52px "Comic Sans MS", "Segoe Print", cursive',
     captionColor: '#f5f2e4', captionBg: null,
     grain: true, vignette: false, jitterDeg: 0,
@@ -251,7 +251,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   golden: {
     id: 'golden', name: 'Golden Hour', tagline: 'Warm sunset glow', category: 'Nature',
     bg: ['#3a1c4f', '#c96f2f', '#f2b544'], cellBg: '#1f1029',
-    gap: 58, outerPad: 94, radius: 18, captionHeight: 125,
+    gap: 58, outerPad: 128, radius: 18, captionHeight: 125,
     captionFont: 'italic 48px Georgia, serif',
     captionColor: '#ffe3a3', captionBg: null,
     grain: true, vignette: true, jitterDeg: 0,

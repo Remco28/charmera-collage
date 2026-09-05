@@ -142,6 +142,12 @@ export function drawSheet(
       roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
     }
+    // Caption band BEFORE the border, so the rule stays crisp and
+    // unbroken (painting it after ate the inner half of thick borders).
+    if (slot && hasCaptions && capH > 0 && theme.captionBg) {
+      ctx.fillStyle = theme.captionBg;
+      ctx.fillRect(x, y + CELL_H, CELL_W, capH);
+    }
     // Refined border: theme-defined, or a whisper of definition
     ctx.save();
     if (theme.borderColor) {
@@ -175,13 +181,9 @@ export function drawSheet(
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(slot.bitmap, dx, dy, dw, dh);
 
-      // Caption
+      // Caption text only — the band itself was painted before the border.
       if (hasCaptions && slot.caption.trim()) {
         const cy = y + CELL_H;
-        if (theme.captionBg) {
-          ctx.fillStyle = theme.captionBg;
-          ctx.fillRect(x, cy, CELL_W, capH);
-        }
         ctx.fillStyle = theme.captionColor;
         ctx.font = theme.captionFont;
         ctx.textAlign = 'center';
