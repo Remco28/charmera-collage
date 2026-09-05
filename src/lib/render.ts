@@ -26,17 +26,52 @@ function paintBackground(ctx: CanvasRenderingContext2D, theme: Theme, W: number,
     ctx.fillRect(0, 0, W, H);
     return;
   }
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  theme.bg.forEach((c, i) => g.addColorStop(i / (theme.bg.length - 1), c));
-  ctx.fillStyle = g;
+  if (theme.bgStyle === 'radial') {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.08, W / 2, H / 2, Math.max(W, H) * 0.72);
+    theme.bg.forEach((c, i) => g.addColorStop(i / (theme.bg.length - 1), c));
+    ctx.fillStyle = g;
+  } else {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    theme.bg.forEach((c, i) => g.addColorStop(i / (theme.bg.length - 1), c));
+    ctx.fillStyle = g;
+  }
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawPattern(ctx: CanvasRenderingContext2D, theme: Theme, W: number, H: number) {
-  if (theme.pattern === 'none') return;
+/** Seeded RNG so preview and export are pixel-identical every run. */
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function themeSeed(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Procedural background textures. Everything is tuned to read in narrow
+ * gutters (44–96px) — small-scale marks, low alpha, no sweeping murals
+ * (photos cover ~93% of the sheet anyway).
+ */
+function drawTexture(ctx: CanvasRenderingContext2D, theme: Theme, W: number, H: number) {
+  const kind = theme.texture;
+  if (kind === 'none') return;
+  const rand = mulberry32(themeSeed(theme.id));
   ctx.save();
-  if (theme.pattern === 'dots') {
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+
+  if (kind === 'dots') {
+    ctx.fillStyle = theme.textureColor ?? 'rgba(255,255,255,0.07)';
     const step = 96;
     for (let y = step / 2; y < H; y += step) {
       for (let x = step / 2; x < W; x += step) {
@@ -45,8 +80,8 @@ function drawPattern(ctx: CanvasRenderingContext2D, theme: Theme, W: number, H: 
         ctx.fill();
       }
     }
-  } else if (theme.pattern === 'stripes') {
-    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+  } else if (kind === 'stripes') {
+    ctx.strokeStyle = theme.textureColor ?? 'rgba(0,0,0,0.05)';
     ctx.lineWidth = 3;
     for (let y = 0; y < H; y += 28) {
       ctx.beginPath();
@@ -54,18 +89,169 @@ function drawPattern(ctx: CanvasRenderingContext2D, theme: Theme, W: number, H: 
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+  } else if (kind === 'halftone') {
+    // Comic-print dots, sized by a sine field — bold enough for gutters.
+    ctx.fillStyle = theme.textureColor ?? 'rgba(0,0,0,0.12)';
+    const step = 64;
+    for (let y = step / 2; y < H; y += step) {
+      for (let x = step / 2; x < W; x += step) {
+        const r = 2 + 8 * (0.5 + 0.5 * Math.sin(x * 0.004) * Math.cos(y * 0.004));
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (kind === 'rays') {
+    // Retro sunburst from sheet center.
+    ctx.fillStyle = theme.textureColor ?? 'rgba(255,255,255,0.08)';
+    const cx = W / 2;
+    const cy = H / 2;
+    const R = Math.max(W, H);
+    const wedges = 24;
+    for (let i = 0; i < wedges; i += 2) {
+      const a0 = (i / wedges) * Math.PI * 2;
+      const a1 = ((i + 1) / wedges) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, a0, a1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (kind === 'weave') {
+    // Linen: fine lines both directions, batched into two paths.
+    ctx.strokeStyle = theme.textureColor ?? 'rgba(0,0,0,0.05)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let y = 0; y < H; y += 8) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for (let x = 0; x < W; x += 8) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+    }
+    ctx.stroke();
+  } else if (kind === 'stars') {
+    // Tiny plus-sign stars, seeded.
+    ctx.strokeStyle = theme.textureColor ?? 'rgba(255,255,255,0.55)';
+    for (let i = 0; i < 240; i++) {
+      const x = rand() * W;
+      const y = rand() * H;
+      const s = 3 + rand() * 8;
+      ctx.globalAlpha = 0.15 + rand() * 0.4;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - s, y);
+      ctx.lineTo(x + s, y);
+      ctx.moveTo(x, y - s);
+      ctx.lineTo(x, y + s);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (kind === 'sprinkles') {
+    // Static confetti dashes in a fixed pastel palette.
+    const palette = ['#ff8fab', '#ffd93d', '#6bcbff', '#8fe3a8', '#d9b8f0', '#ff9d5c'];
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 170; i++) {
+      const x = rand() * W;
+      const y = rand() * H;
+      const a = rand() * Math.PI;
+      const len = 10 + rand() * 16;
+      ctx.strokeStyle = palette[Math.floor(rand() * palette.length)];
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (kind === 'terrazzo') {
+    // Organic chips in warm neutrals.
+    const palette = ['rgba(0,0,0,0.07)', 'rgba(120,90,60,0.12)', 'rgba(178,158,128,0.16)', 'rgba(255,255,255,0.55)'];
+    for (let i = 0; i < 95; i++) {
+      const x = rand() * W;
+      const y = rand() * H;
+      const r = 12 + rand() * 34;
+      const pts = 5 + Math.floor(rand() * 3);
+      const rot = rand() * Math.PI * 2;
+      ctx.fillStyle = palette[Math.floor(rand() * palette.length)];
+      ctx.beginPath();
+      for (let p = 0; p < pts; p++) {
+        const a = rot + (p / pts) * Math.PI * 2;
+        const rr = r * (0.7 + rand() * 0.5);
+        const vx = x + Math.cos(a) * rr;
+        const vy = y + Math.sin(a) * rr;
+        if (p === 0) ctx.moveTo(vx, vy);
+        else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (kind === 'grid') {
+    // Drafting grid, fine + major lines.
+    ctx.strokeStyle = theme.textureColor ?? 'rgba(0,0,0,0.09)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let y = 0; y < H; y += 56) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+    }
+    for (let x = 0; x < W; x += 56) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+    }
+    ctx.stroke();
+  } else if (kind === 'fiber') {
+    // Handmade-paper wash: soft translucent blobs.
+    for (let i = 0; i < 70; i++) {
+      const x = rand() * W;
+      const y = rand() * H;
+      const rx = 120 + rand() * 320;
+      const ry = 80 + rand() * 200;
+      const rot = rand() * Math.PI;
+      ctx.fillStyle =
+        theme.textureColor ?? (i % 3 === 0 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.06)');
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (kind === 'lightleak') {
+    // Film light leak: warm blooms from two corners.
+    let g = ctx.createRadialGradient(0, H, 0, 0, H, Math.max(W, H) * 0.55);
+    g.addColorStop(0, 'rgba(255,110,30,0.30)');
+    g.addColorStop(1, 'rgba(255,110,30,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    g = ctx.createRadialGradient(W, 0, 0, W, 0, Math.max(W, H) * 0.4);
+    g.addColorStop(0, 'rgba(255,200,90,0.20)');
+    g.addColorStop(1, 'rgba(255,200,90,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  } else if (kind === 'checker') {
+    // Subtle checkerboard for soda-shop / ska moods.
+    ctx.fillStyle = theme.textureColor ?? 'rgba(0,0,0,0.06)';
+    const s = 72;
+    let row = 0;
+    for (let y = 0; y < H; y += s, row++) {
+      for (let x = (row % 2) * s; x < W; x += s * 2) {
+        ctx.fillRect(x, y, s, s);
+      }
+    }
   }
   ctx.restore();
 }
 
-function drawGrain(ctx: CanvasRenderingContext2D, W: number, H: number) {
+function drawGrain(ctx: CanvasRenderingContext2D, W: number, H: number, seed: number) {
+  // Two-tone film grain, seeded so every export matches the preview.
+  const rand = mulberry32(seed ^ 0x9e3779b9);
   ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.fillStyle = '#ffffff';
-  // ~2500 specks is plenty to unify exposures without slowing export
-  for (let i = 0; i < 2500; i++) {
-    const x = Math.random() * W;
-    const y = Math.random() * H;
+  for (let i = 0; i < 2600; i++) {
+    const x = rand() * W;
+    const y = rand() * H;
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.055)';
     ctx.fillRect(x, y, 2, 2);
   }
   ctx.restore();
@@ -109,7 +295,7 @@ export function drawSheet(
   if (!ctx) return { width: W, height: H };
 
   paintBackground(ctx, theme, W, H);
-  drawPattern(ctx, theme, W, H);
+  drawTexture(ctx, theme, W, H);
 
   for (let i = 0; i < cols * Math.ceil(count / cols); i++) {
     const col = i % cols;
@@ -205,7 +391,7 @@ export function drawSheet(
     ctx.restore();
   }
 
-  if (theme.grain) drawGrain(ctx, W, H);
+  if (theme.grain) drawGrain(ctx, W, H, themeSeed(theme.id));
   if (theme.vignette) drawVignette(ctx, W, H);
 
   return { width: W, height: H };

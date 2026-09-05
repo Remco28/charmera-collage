@@ -1,10 +1,18 @@
 export type ThemeCategory = 'Dark' | 'Light' | 'Retro' | 'Playful' | 'Elegant' | 'Nature';
 
+export type TextureKind =
+  | 'none' | 'dots' | 'stripes' | 'halftone' | 'rays' | 'weave'
+  | 'stars' | 'sprinkles' | 'terrazzo' | 'grid' | 'fiber' | 'lightleak'
+  | 'checker';
+
 export type ThemeId =
   | 'darkroom' | 'polaroid' | 'gallery' | 'y2k' | 'playground'
   | 'midnight-neon' | 'espresso' | 'forest' | 'ocean' | 'desert'
   | 'sakura' | 'mono-ink' | 'blueprint' | 'newsprint' | 'noir'
-  | 'disco' | 'candy' | 'pastel' | 'bauhaus' | 'chalkboard' | 'golden';
+  | 'disco' | 'candy' | 'pastel' | 'bauhaus' | 'chalkboard' | 'golden'
+  | 'pop-art' | 'sunburst' | 'linen' | 'starry' | 'confetti'
+  | 'terrazzo' | 'studio' | 'ember' | 'dusk' | 'kraft'
+  | 'soda' | 'tuxedo' | 'nautical' | 'matcha' | 'royal';
 
 export interface PhotoSlot {
   id: string;
@@ -36,7 +44,12 @@ export interface Theme {
   borderColor: string | null;
   borderWidth: number;
   shadow: boolean;
-  pattern: 'none' | 'dots' | 'stripes';
+  /** Procedural background texture. Tuned to read in narrow gutters. */
+  texture: TextureKind;
+  /** Override tint for the texture (null = painter default). */
+  textureColor: string | null;
+  /** Background gradient shape. */
+  bgStyle: 'linear' | 'radial';
   placeholderColor: string;
   /** Inner mat: photo is inset by mat on top/left/right, matBottom below.
    *  Makes the cellBg a visible frame around every photo. */
