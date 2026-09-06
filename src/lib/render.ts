@@ -270,7 +270,9 @@ function drawVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
  * Draw the full sheet of IDENTICAL cards positioned by a row recipe.
  * - native pixels, no resizing, no cropping ever
  * - exactly n cards, no placeholders — rows simply end
- * - caption strip reserved when ANY photo has a caption (uniform look)
+ * - caption strip reserved when ANY photo has a caption (uniform look),
+ *   except on frameless themes (captions hide, text is kept)
+ * - frameless themes: photo floats on the background with a soft shadow
  */
 export function drawSheet(
   canvas: HTMLCanvasElement,
@@ -278,7 +280,7 @@ export function drawSheet(
   theme: Theme,
   sheet: PlacedSheet,
 ): { width: number; height: number } {
-  const hasCaptions = slots.some((s) => s.caption.trim().length > 0);
+  const hasCaptions = theme.framed && slots.some((s) => s.caption.trim().length > 0);
   const capH = hasCaptions ? theme.captionHeight : 0;
   const cellFullH = CELL_H + capH;
   const { W, H } = sheet;
@@ -306,12 +308,41 @@ export function drawSheet(
       ctx.translate(-(x + CELL_W / 2), -(y + cellFullH / 2));
     }
 
+    // FRAMELESS: photo floats directly on the background. No card, no
+    // mat, no border, no captions — just a soft drop shadow for lift.
+    // Letterbox bars (non-4:3 sources) show background, which is the point.
+    if (!theme.framed) {
+      const bw = slot.bitmap.width;
+      const bh = slot.bitmap.height;
+      const scale = Math.min(CELL_W / bw, CELL_H / bh, 1);
+      const dw = Math.max(1, Math.floor(bw * scale));
+      const dh = Math.max(1, Math.floor(bh * scale));
+      const dx = x + Math.floor((CELL_W - dw) / 2);
+      const dy = y + Math.floor((CELL_H - dh) / 2);
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = theme.shadowBlur ?? 90;
+      ctx.shadowOffsetY = theme.shadowOffsetY ?? 36;
+      roundRect(ctx, dx, dy, dw, dh, Math.min(theme.radius, 24));
+      ctx.fillStyle = 'rgba(0,0,0,0.01)';
+      ctx.fill();
+      ctx.restore();
+      ctx.save();
+      roundRect(ctx, dx, dy, dw, dh, Math.min(theme.radius, 24));
+      ctx.clip();
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(slot.bitmap, dx, dy, dw, dh);
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
     // Cell card with optional drop shadow for depth
     if (theme.shadow) {
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = 60;
-      ctx.shadowOffsetY = 24;
+      ctx.shadowBlur = theme.shadowBlur ?? 60;
+      ctx.shadowOffsetY = theme.shadowOffsetY ?? 24;
       ctx.fillStyle = slot ? theme.cellBg : 'rgba(127,127,127,0.18)';
       roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
@@ -327,18 +358,16 @@ export function drawSheet(
       ctx.fillStyle = theme.captionBg;
       ctx.fillRect(x, y + CELL_H, CELL_W, capH);
     }
-    // Refined border: theme-defined, or a whisper of definition
-    ctx.save();
-    if (theme.borderColor) {
+    // Refined border: theme-defined. Skipped entirely at width 0
+    // (Frame: None) — photo meets background directly.
+    if (theme.borderColor && theme.borderWidth > 0) {
+      ctx.save();
       ctx.strokeStyle = theme.borderColor;
       ctx.lineWidth = theme.borderWidth;
-    } else {
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 3;
+      roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
+      ctx.stroke();
+      ctx.restore();
     }
-    roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
-    ctx.stroke();
-    ctx.restore();
 
     // One sealed unit: photo + frame + caption. Identical size, always.
     {

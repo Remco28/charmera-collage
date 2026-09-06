@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import { CELL_H, CELL_W } from './lib/layout';
+import { applyFrame } from './lib/frame';
+import { bgIsDark, harmonizeBackground, samplePhotoColor } from './lib/harmonize';
+import type { BgMatch } from './lib/harmonize';
 import { drawSheet, exportSheet } from './lib/render';
 import { placeRecipe, recipesFor } from './lib/recipes';
 import type { RowAlign } from './lib/recipes';
 import { THEME_CATEGORIES, THEME_LIST } from './lib/themes';
-import type { PhotoSlot, ThemeId } from './lib/types';
+import type { FrameLevel, PhotoSlot, ThemeId } from './lib/types';
 import type { ThemeCategoryFilter } from './lib/themes';
 import { hashFile } from './lib/dedupe';
 
@@ -60,6 +63,8 @@ export default function App() {
   const [catFilter, setCatFilter] = useState<ThemeCategoryFilter>('All');
   const [recipeIdx, setRecipeIdx] = useState(0);
   const [align, setAlign] = useState<RowAlign>('centered');
+  const [frameLevel, setFrameLevel] = useState<FrameLevel>('standard');
+  const [bgMatch, setBgMatch] = useState<BgMatch>('off');
   const [dragging, setDragging] = useState(false);
   const [shaking, setShaking] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -76,14 +81,24 @@ export default function App() {
   const theme = THEME_LIST.find((t) => t.id === themeId) ?? THEME_LIST[0];
   const variants = recipesFor(slots.length);
 
+  // Effective theme = frame intensity + optional photo-matched background.
+  // One object flows into placer + renderer, so everything stays consistent.
+  const effTheme = useMemo(() => {
+    const base = applyFrame(theme, frameLevel);
+    if (bgMatch === 'off' || slots.length === 0) return base;
+    const colors = slots.map((s) => samplePhotoColor(s.bitmap));
+    const stops = harmonizeBackground(colors, base.bg.length, bgMatch, bgIsDark(theme.bg));
+    return stops.length > 0 ? { ...base, bg: stops } : base;
+  }, [slots, theme, frameLevel, bgMatch]);
+
   // Identical cards, arranged by the chosen row recipe. Never resized.
   const sheet = useMemo(() => {
     const list = recipesFor(slots.length);
     const recipe = list[recipeIdx % Math.max(1, list.length)];
     if (!recipe) return null;
-    const capH = slots.some((s) => s.caption.trim().length > 0) ? theme.captionHeight : 0;
-    return placeRecipe(recipe, slots.length, theme.gap, theme.outerPad, CELL_W, CELL_H + capH, align, recipeIdx, list.length);
-  }, [slots, theme, recipeIdx, align]);
+    const capH = effTheme.framed && slots.some((s) => s.caption.trim().length > 0) ? effTheme.captionHeight : 0;
+    return placeRecipe(recipe, slots.length, effTheme.gap, effTheme.outerPad, CELL_W, CELL_H + capH, align, recipeIdx, list.length);
+  }, [slots, effTheme, recipeIdx, align]);
 
   // New photo count → back to the first arrangement.
   useEffect(() => {
@@ -150,8 +165,8 @@ export default function App() {
       }
       return;
     }
-    drawSheet(canvas, slots, theme, sheet);
-  }, [slots, theme, sheet]);
+    drawSheet(canvas, slots, effTheme, sheet);
+  }, [slots, effTheme, sheet]);
 
   const removeSlot = (id: string) =>
     setSlots((prev) => {
@@ -204,7 +219,7 @@ export default function App() {
     setShaking(true);
     setTimeout(() => setShaking(false), 650);
     try {
-      drawSheet(canvasRef.current, slots, theme, sheet);
+      drawSheet(canvasRef.current, slots, effTheme, sheet);
       const blob = await exportSheet(canvasRef.current, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -340,7 +355,14 @@ export default function App() {
                 >
                   <span className="h-10 w-14 shrink-0 rounded-lg border border-black/30" style={{ background: t.swatch }} />
                   <span className="min-w-0">
-                    <span className="block truncate font-bold">{t.name} {t.id === themeId && '✓'}</span>
+                    <span className="block truncate font-bold">
+                      {t.name} {t.id === themeId && '✓'}{' '}
+                      {!t.framed && (
+                        <span className="ml-1 rounded-full bg-sky-900 px-1.5 py-0.5 align-middle text-[10px] font-black uppercase text-sky-200">
+                          Frameless
+                        </span>
+                      )}
+                    </span>
                     <span className="block truncate text-xs text-neutral-400">{t.tagline} · {t.category}</span>
                   </span>
                 </button>
@@ -352,10 +374,15 @@ export default function App() {
           {slots.length > 0 && (
             <Collapsible
               title={`Photos (${slots.length})`}
-              summary={<>tray order = sheet order · drag rows</>}
+              summary={<>{theme.framed ? 'tray order = sheet order · drag rows' : 'captions hide on frameless · text kept'}</>}
               open={openPhotos}
               onToggle={() => setOpenPhotos((v) => !v)}
             >
+              {!theme.framed && (
+                <p className="mb-1 rounded-lg bg-neutral-800 px-2 py-1.5 text-xs text-neutral-400">
+                  ⓘ {theme.name} is frameless — captions are hidden but kept. Switch themes to show them.
+                </p>
+              )}
               <ul className="mt-1 max-h-96 space-y-2 overflow-auto pr-1">
                 {slots.map((s, i) => (
                   <li
@@ -429,6 +456,42 @@ export default function App() {
                     className={`px-4 py-1.5 font-bold ${align === a ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
                   >
                     {a === 'centered' ? 'Centered' : 'Contact sheet'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Frame intensity + photo-matched background */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div
+                className="flex overflow-hidden rounded-full bg-neutral-800 text-sm"
+                title={theme.framed ? 'Frame intensity — uniform across every theme' : 'Frameless themes carry no frame'}
+              >
+                {(['none', 'hairline', 'standard'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFrameLevel(f)}
+                    disabled={!theme.framed}
+                    className={`px-4 py-1.5 font-bold capitalize ${
+                      !theme.framed
+                        ? 'cursor-not-allowed text-neutral-600'
+                        : frameLevel === f
+                          ? 'bg-amber-300 text-black'
+                          : 'text-neutral-300 hover:bg-neutral-700'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <div className="flex overflow-hidden rounded-full bg-neutral-800 text-sm" title="Tint the background from your photos">
+                {(['off', 'blend', 'contrast'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setBgMatch(m)}
+                    className={`px-4 py-1.5 font-bold capitalize ${bgMatch === m ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
+                  >
+                    {m === 'off' ? 'Theme BG' : m}
                   </button>
                 ))}
               </div>

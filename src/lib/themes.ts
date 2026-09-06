@@ -20,6 +20,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(245,234,210,0.4)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   polaroid: {
@@ -34,6 +35,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(91,74,58,0.45)',
+    framed: true,
     mat: 44, matBottom: 44,
   },
   gallery: {
@@ -48,6 +50,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(61,58,52,0.4)',
+    framed: true,
     mat: 20, matBottom: 20,
   },
   y2k: {
@@ -62,6 +65,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(0,240,255,0.4)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   playground: {
@@ -76,6 +80,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(28,28,30,0.4)',
+    framed: true,
     mat: 24, matBottom: 24,
   },
   'midnight-neon': {
@@ -90,6 +95,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(125,249,255,0.4)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   espresso: {
@@ -104,6 +110,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(250,243,232,0.4)',
+    framed: true,
     mat: 24, matBottom: 24,
   },
   forest: {
@@ -118,6 +125,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(244,241,228,0.45)',
+    framed: true,
     mat: 20, matBottom: 20,
   },
   ocean: {
@@ -132,6 +140,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(242,248,250,0.5)',
+    framed: true,
     mat: 16, matBottom: 16,
   },
   desert: {
@@ -146,6 +155,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(124,63,18,0.4)',
+    framed: true,
     mat: 20, matBottom: 20,
   },
   sakura: {
@@ -160,6 +170,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(143,59,86,0.4)',
+    framed: true,
     mat: 24, matBottom: 24,
   },
   'mono-ink': {
@@ -174,6 +185,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(17,17,17,0.4)',
+    framed: true,
     mat: 10, matBottom: 10,
   },
   blueprint: {
@@ -188,6 +200,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(214,231,255,0.45)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   newsprint: {
@@ -202,6 +215,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(34,34,34,0.4)',
+    framed: true,
     mat: 8, matBottom: 8,
   },
   noir: {
@@ -216,6 +230,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(232,228,216,0.4)',
+    framed: true,
     mat: 14, matBottom: 14,
   },
   disco: {
@@ -230,6 +245,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(255,214,245,0.45)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   candy: {
@@ -244,6 +260,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(194,24,91,0.4)',
+    framed: true,
     mat: 32, matBottom: 32,
   },
   pastel: {
@@ -258,6 +275,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(107,107,143,0.4)',
+    framed: true,
     mat: 28, matBottom: 28,
   },
   bauhaus: {
@@ -272,6 +290,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(26,26,26,0.4)',
+    framed: true,
     mat: 36, matBottom: 36,
   },
   chalkboard: {
@@ -286,6 +305,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(245,242,228,0.4)',
+    framed: true,
     mat: 28, matBottom: 28,
   },
   golden: {
@@ -300,6 +320,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(255,227,163,0.45)',
+    framed: true,
     mat: 16, matBottom: 16,
   },
   'pop-art': {
@@ -314,6 +335,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(17,17,17,0.45)',
+    framed: true,
     mat: 16, matBottom: 16,
   },
   sunburst: {
@@ -328,6 +350,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(124,63,18,0.45)',
+    framed: true,
     mat: 20, matBottom: 20,
   },
   linen: {
@@ -342,6 +365,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(74,68,56,0.4)',
+    framed: true,
     mat: 24, matBottom: 24,
   },
   starry: {
@@ -356,6 +380,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(207,224,255,0.4)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   confetti: {
@@ -370,6 +395,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(51,51,51,0.4)',
+    framed: true,
     mat: 28, matBottom: 28,
   },
   terrazzo: {
@@ -384,6 +410,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(90,82,72,0.4)',
+    framed: true,
     mat: 22, matBottom: 22,
   },
   studio: {
@@ -398,6 +425,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(46,58,48,0.4)',
+    framed: true,
     mat: 14, matBottom: 14,
   },
   ember: {
@@ -412,6 +440,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(255,179,122,0.4)',
+    framed: true,
     mat: 12, matBottom: 12,
   },
   dusk: {
@@ -426,6 +455,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'radial',
     textureColor: null,
     placeholderColor: 'rgba(255,217,163,0.4)',
+    framed: true,
     mat: 14, matBottom: 14,
   },
   kraft: {
@@ -440,6 +470,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(74,47,29,0.45)',
+    framed: true,
     mat: 18, matBottom: 18,
   },
   soda: {
@@ -454,6 +485,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: 'rgba(193,39,45,0.08)',
     placeholderColor: 'rgba(193,39,45,0.45)',
+    framed: true,
     mat: 18, matBottom: 18,
   },
   tuxedo: {
@@ -468,6 +500,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: 'rgba(255,255,255,0.09)',
     placeholderColor: 'rgba(232,226,210,0.4)',
+    framed: true,
     mat: 14, matBottom: 14,
   },
   nautical: {
@@ -482,6 +515,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: 'rgba(255,255,255,0.10)',
     placeholderColor: 'rgba(242,246,248,0.5)',
+    framed: true,
     mat: 16, matBottom: 16,
   },
   matcha: {
@@ -496,6 +530,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'linear',
     textureColor: null,
     placeholderColor: 'rgba(51,71,31,0.45)',
+    framed: true,
     mat: 20, matBottom: 20,
   },
   royal: {
@@ -510,7 +545,68 @@ export const THEMES: Record<ThemeId, Theme> = {
     bgStyle: 'radial',
     textureColor: null,
     placeholderColor: 'rgba(240,217,138,0.4)',
+    framed: true,
     mat: 16, matBottom: 16,
+  },
+  seamless: {
+    id: 'seamless', name: 'Seamless', tagline: 'Continuity-first calm', category: 'Light',
+    bg: ['#e9e6de', '#d8d3c6'], cellBg: '#f7f5ef',
+    gap: 72, outerPad: 130, radius: 12, captionHeight: 125,
+    captionFont: 'italic 46px Georgia, serif',
+    captionColor: '#55504a', captionBg: null,
+    grain: false, vignette: false, jitterDeg: 0,
+    swatch: 'linear-gradient(135deg,#e9e6de,#b8b2a4)',
+    borderColor: '#c4bcab', borderWidth: 2, shadow: false, texture: 'fiber',
+    bgStyle: 'linear',
+    textureColor: null,
+    placeholderColor: 'rgba(85,80,74,0.4)',
+    framed: true,
+    mat: 4, matBottom: 4,
+  },
+  float: {
+    id: 'float', name: 'Float', tagline: 'Gallery air, no frame', category: 'Light',
+    bg: ['#fafafa', '#ececec'], cellBg: '#ffffff',
+    gap: 84, outerPad: 150, radius: 24, captionHeight: 125,
+    captionFont: '46px system-ui, sans-serif',
+    captionColor: '#555555', captionBg: null,
+    grain: false, vignette: false, jitterDeg: 0,
+    swatch: 'linear-gradient(135deg,#ffffff,#cfcfcf)',
+    borderColor: null, borderWidth: 0, shadow: true, texture: 'none',
+    bgStyle: 'linear',
+    textureColor: null,
+    placeholderColor: 'rgba(85,85,85,0.4)',
+    framed: false,
+    mat: 0, matBottom: 0,
+  },
+  'night-float': {
+    id: 'night-float', name: 'Night Float', tagline: 'Lift out of the dark', category: 'Dark',
+    bg: ['#08080c', '#17171f'], cellBg: '#101014',
+    gap: 84, outerPad: 150, radius: 24, captionHeight: 125,
+    captionFont: '46px system-ui, sans-serif',
+    captionColor: '#cccccc', captionBg: null,
+    grain: true, vignette: true, jitterDeg: 0,
+    swatch: 'linear-gradient(135deg,#08080c,#3a3a55)',
+    borderColor: null, borderWidth: 0, shadow: true, texture: 'stars',
+    bgStyle: 'linear',
+    textureColor: null,
+    placeholderColor: 'rgba(204,204,204,0.4)',
+    framed: false,
+    mat: 0, matBottom: 0,
+  },
+  sticker: {
+    id: 'sticker', name: 'Sticker Book', tagline: 'Die-cut gloss', category: 'Playful',
+    bg: ['#d8ecff', '#ffe3ef'], cellBg: '#ffffff',
+    gap: 72, outerPad: 130, radius: 48, captionHeight: 130,
+    captionFont: '800 50px Verdana, system-ui, sans-serif',
+    captionColor: '#333333', captionBg: null,
+    grain: false, vignette: false, jitterDeg: 0,
+    swatch: 'linear-gradient(135deg,#d8ecff,#ff8fb8)',
+    borderColor: '#ff5c9d', borderWidth: 5, shadow: true, texture: 'dots',
+    bgStyle: 'linear',
+    textureColor: 'rgba(255,255,255,0.5)',
+    placeholderColor: 'rgba(51,51,51,0.4)',
+    framed: true,
+    mat: 56, matBottom: 64,
   },
 };
 
@@ -522,6 +618,7 @@ export const THEME_LIST: Theme[] = [
   THEMES['pop-art'], THEMES.sunburst, THEMES.linen, THEMES.starry, THEMES.confetti,
   THEMES.terrazzo, THEMES.studio, THEMES.ember, THEMES.dusk, THEMES.kraft,
   THEMES.soda, THEMES.tuxedo, THEMES.nautical, THEMES.matcha, THEMES.royal,
+  THEMES.seamless, THEMES.float, THEMES['night-float'], THEMES.sticker,
 ];
 
 export const THEME_CATEGORIES = ['All', 'Dark', 'Light', 'Retro', 'Playful', 'Elegant', 'Nature'] as const;

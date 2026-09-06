@@ -5,6 +5,9 @@ export type TextureKind =
   | 'stars' | 'sprinkles' | 'terrazzo' | 'grid' | 'fiber' | 'lightleak'
   | 'checker';
 
+/** Frame intensity override. None/hairline apply uniformly to any theme. */
+export type FrameLevel = 'none' | 'hairline' | 'standard';
+
 export type ThemeId =
   | 'darkroom' | 'polaroid' | 'gallery' | 'y2k' | 'playground'
   | 'midnight-neon' | 'espresso' | 'forest' | 'ocean' | 'desert'
@@ -12,7 +15,8 @@ export type ThemeId =
   | 'disco' | 'candy' | 'pastel' | 'bauhaus' | 'chalkboard' | 'golden'
   | 'pop-art' | 'sunburst' | 'linen' | 'starry' | 'confetti'
   | 'terrazzo' | 'studio' | 'ember' | 'dusk' | 'kraft'
-  | 'soda' | 'tuxedo' | 'nautical' | 'matcha' | 'royal';
+  | 'soda' | 'tuxedo' | 'nautical' | 'matcha' | 'royal'
+  | 'seamless' | 'float' | 'night-float' | 'sticker';
 
 export interface PhotoSlot {
   id: string;
@@ -45,6 +49,9 @@ export interface Theme {
   borderColor: string | null;
   borderWidth: number;
   shadow: boolean;
+  /** Soft-shadow tuning for float effects (defaults when omitted). */
+  shadowBlur?: number;
+  shadowOffsetY?: number;
   /** Procedural background texture. Tuned to read in narrow gutters. */
   texture: TextureKind;
   /** Override tint for the texture (null = painter default). */
@@ -52,6 +59,8 @@ export interface Theme {
   /** Background gradient shape. */
   bgStyle: 'linear' | 'radial';
   placeholderColor: string;
+  /** False = photo floats frameless (no card/mat/border/captions). */
+  framed: boolean;
   /** Inner mat: photo is inset by mat on top/left/right, matBottom below.
    *  Makes the cellBg a visible frame around every photo. */
   mat: number;
