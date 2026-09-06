@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import { CELL_H, CELL_W } from './lib/layout';
 import { applyFrame } from './lib/frame';
-import { bgIsDark, harmonizeBackground, samplePhotoColor } from './lib/harmonize';
+import { bgIsDark, harmonizeBackground, samplePhotoPixels } from './lib/harmonize';
 import type { BgMatch } from './lib/harmonize';
 import { drawSheet, exportSheet } from './lib/render';
 import { placeRecipe, recipesFor } from './lib/recipes';
@@ -86,8 +86,8 @@ export default function App() {
   const effTheme = useMemo(() => {
     const base = applyFrame(theme, frameLevel);
     if (bgMatch === 'off' || slots.length === 0) return base;
-    const colors = slots.map((s) => samplePhotoColor(s.bitmap));
-    const stops = harmonizeBackground(colors, base.bg.length, bgMatch, bgIsDark(theme.bg));
+    const pixels = slots.flatMap((s) => samplePhotoPixels(s.bitmap));
+    const stops = harmonizeBackground(pixels, base.bg.length, bgMatch, bgIsDark(theme.bg));
     return stops.length > 0 ? { ...base, bg: stops } : base;
   }, [slots, theme, frameLevel, bgMatch]);
 
@@ -421,7 +421,7 @@ export default function App() {
               <p className="text-sm text-neutral-400">
                 {slots.length === 0 || !sheet
                   ? 'Your sheet preview appears here'
-                  : `${theme.name} · ${sheet.label} · identical cards, no crop`}
+                  : `${theme.name} · identical cards, no crop`}
               </p>
               <div className="flex gap-2 text-sm">
                 {(['png', 'jpeg'] as const).map((f) => (
@@ -436,64 +436,75 @@ export default function App() {
               </div>
             </div>
 
-            {/* Arrangement: recipe shuffle + row alignment */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {variants.length > 1 && (
-                <button
-                  onClick={() => setRecipeIdx((i) => i + 1)}
-                  title="Try the next arrangement — same cards, new positions"
-                  className="rounded-full bg-neutral-800 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-neutral-700"
+            {/* Sheet controls: labeled rows, same chunky pills */}
+            <div className="mb-3 space-y-1.5 rounded-2xl border-2 border-dashed border-neutral-700 bg-neutral-950/60 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-black">🃏 Arrangement</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-300">{slots.length > 0 && sheet ? sheet.label : '—'}</span>
+                  {variants.length > 1 && (
+                    <button
+                      onClick={() => setRecipeIdx((i) => i + 1)}
+                      title="Try the next arrangement — same cards, new positions"
+                      className="rounded-full bg-amber-300 px-3 py-1 text-sm font-black text-black hover:bg-amber-200"
+                    >
+                      ⟳
+                    </button>
+                  )}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-black">📏 Rows</span>
+                <span className="flex overflow-hidden rounded-full bg-neutral-800 text-sm">
+                  {(['centered', 'contact'] as const).map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => setAlign(a)}
+                      title={a === 'centered' ? 'Rows centered on the sheet' : 'Rows left-aligned like a contact sheet'}
+                      className={`px-4 py-1.5 font-bold ${align === a ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
+                    >
+                      {a === 'centered' ? 'Centered' : 'Contact sheet'}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-black">🖼️ Frame</span>
+                <span
+                  className="flex overflow-hidden rounded-full bg-neutral-800 text-sm"
+                  title={theme.framed ? 'Frame intensity — uniform across every theme' : 'Frameless themes carry no frame'}
                 >
-                  ⟳ Shuffle arrangement
-                </button>
-              )}
-              <div className="flex overflow-hidden rounded-full bg-neutral-800 text-sm">
-                {(['centered', 'contact'] as const).map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => setAlign(a)}
-                    title={a === 'centered' ? 'Rows centered on the sheet' : 'Rows left-aligned like a contact sheet'}
-                    className={`px-4 py-1.5 font-bold ${align === a ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
-                  >
-                    {a === 'centered' ? 'Centered' : 'Contact sheet'}
-                  </button>
-                ))}
+                  {(['none', 'hairline', 'standard'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFrameLevel(f)}
+                      disabled={!theme.framed}
+                      className={`px-4 py-1.5 font-bold capitalize ${
+                        !theme.framed
+                          ? 'cursor-not-allowed text-neutral-600'
+                          : frameLevel === f
+                            ? 'bg-amber-300 text-black'
+                            : 'text-neutral-300 hover:bg-neutral-700'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </span>
               </div>
-            </div>
-
-            {/* Frame intensity + photo-matched background */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <div
-                className="flex overflow-hidden rounded-full bg-neutral-800 text-sm"
-                title={theme.framed ? 'Frame intensity — uniform across every theme' : 'Frameless themes carry no frame'}
-              >
-                {(['none', 'hairline', 'standard'] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFrameLevel(f)}
-                    disabled={!theme.framed}
-                    className={`px-4 py-1.5 font-bold capitalize ${
-                      !theme.framed
-                        ? 'cursor-not-allowed text-neutral-600'
-                        : frameLevel === f
-                          ? 'bg-amber-300 text-black'
-                          : 'text-neutral-300 hover:bg-neutral-700'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-              <div className="flex overflow-hidden rounded-full bg-neutral-800 text-sm" title="Tint the background from your photos">
-                {(['off', 'blend', 'contrast'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setBgMatch(m)}
-                    className={`px-4 py-1.5 font-bold capitalize ${bgMatch === m ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
-                  >
-                    {m === 'off' ? 'Theme BG' : m}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-black">🎨 Background</span>
+                <span className="flex overflow-hidden rounded-full bg-neutral-800 text-sm" title="Tint the background from your photos">
+                  {(['off', 'blend', 'contrast'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setBgMatch(m)}
+                      className={`px-4 py-1.5 font-bold capitalize ${bgMatch === m ? 'bg-amber-300 text-black' : 'text-neutral-300 hover:bg-neutral-700'}`}
+                    >
+                      {m === 'off' ? 'Theme BG' : m}
+                    </button>
+                  ))}
+                </span>
               </div>
             </div>
 

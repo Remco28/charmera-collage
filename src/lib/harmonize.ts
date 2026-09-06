@@ -49,31 +49,85 @@ function hslToCss(h: number, s: number, l: number): string {
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 
-/** Edge-weighted average color of one photo (edges touch the background). */
-export function samplePhotoColor(bmp: ImageBitmap): Rgb {
+export interface WeightedPixel extends Rgb {
+  w: number;
+}
+
+/**
+ * Sample a photo as a pixel SET (24x24 grid, edge pixels weighted x3 —
+ * edges are what touch the background). Averaging happens later by hue
+ * vote, never by RGB mean (RGB means of varied sets always collapse to mud).
+ */
+export function samplePhotoPixels(bmp: ImageBitmap): WeightedPixel[] {
   const S = 24;
   const canvas = document.createElement('canvas');
   canvas.width = S;
   canvas.height = S;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return { r: 128, g: 128, b: 128 };
+  if (!ctx) return [{ r: 128, g: 128, b: 128, w: 1 }];
   ctx.drawImage(bmp, 0, 0, S, S);
   const d = ctx.getImageData(0, 0, S, S).data;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let w = 0;
+  const out: WeightedPixel[] = [];
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const edge = x === 0 || y === 0 || x === S - 1 || y === S - 1 ? 3 : 1;
       const i = (y * S + x) * 4;
-      r += d[i] * edge;
-      g += d[i + 1] * edge;
-      b += d[i + 2] * edge;
-      w += edge;
+      out.push({ r: d[i], g: d[i + 1], b: d[i + 2], w: edge });
     }
   }
-  return { r: r / w, g: g / w, b: b / w };
+  return out;
+}
+
+/**
+ * Dominant chromatic hue by saturation-weighted histogram vote.
+ * Pool blues stay blue; grass stays green — the peak survives where
+ * an RGB mean would collapse to tan. Returns null when nothing
+ * chromatic exists (true B&W sets).
+ */
+export function dominantHue(pixels: WeightedPixel[]): { h: number; s: number } | null {
+  const BINS = 36;
+  const votes = new Array<number>(BINS).fill(0);
+  const members: { h: number; s: number; w: number }[][] = Array.from({ length: BINS }, () => []);
+  for (const p of pixels) {
+    const { h, s, l } = rgbToHsl(p);
+    if (s < 0.12 || l < 0.08 || l > 0.95) continue; // gray / black / white don't vote
+    const bin = Math.min(BINS - 1, Math.floor(h / (360 / BINS)));
+    votes[bin] += s * p.w;
+    members[bin].push({ h, s, w: s * p.w });
+  }
+  let peak = -1;
+  let peakVotes = 0;
+  for (let b = 0; b < BINS; b++) {
+    if (votes[b] > peakVotes) {
+      peakVotes = votes[b];
+      peak = b;
+    }
+  }
+  if (peak < 0) return null;
+  // Circular mean hue + weighted-median saturation of the winning bin.
+  const ms = members[peak];
+  let sx = 0;
+  let sy = 0;
+  let tw = 0;
+  for (const m of ms) {
+    const a = (m.h * Math.PI) / 180;
+    sx += Math.cos(a) * m.w;
+    sy += Math.sin(a) * m.w;
+    tw += m.w;
+  }
+  let h = (Math.atan2(sy, sx) * 180) / Math.PI;
+  if (h < 0) h += 360;
+  const sorted = [...ms].sort((a, b) => a.s - b.s);
+  let acc = 0;
+  let s = sorted[sorted.length - 1]?.s ?? 0;
+  for (const m of sorted) {
+    acc += m.w;
+    if (acc >= tw / 2) {
+      s = m.s;
+      break;
+    }
+  }
+  return { h, s };
 }
 
 /** Rough darkness test for a theme background (first stop decides). */
@@ -89,32 +143,29 @@ export function bgIsDark(bg: string[]): boolean {
 }
 
 /**
- * Build bg gradient stops from a set of sampled colors.
+ * Build bg gradient stops from sampled photo pixels.
  * Keeps the theme's light/dark band so text and mats still read.
  */
 export function harmonizeBackground(
-  colors: Rgb[],
+  pixels: WeightedPixel[],
   stopCount: number,
   mode: Exclude<BgMatch, 'off'>,
   dark: boolean,
 ): string[] {
-  if (colors.length === 0 || stopCount <= 0) return [];
-  const avg = {
-    r: colors.reduce((n, c) => n + c.r, 0) / colors.length,
-    g: colors.reduce((n, c) => n + c.g, 0) / colors.length,
-    b: colors.reduce((n, c) => n + c.b, 0) / colors.length,
-  };
-  let { h, s } = rgbToHsl(avg);
-
-  if (s < 0.08) {
-    // Near-monochrome set: fall back to a warm stone that flatters B&W.
+  if (pixels.length === 0 || stopCount <= 0) return [];
+  const dom = dominantHue(pixels);
+  let h: number;
+  let s: number;
+  if (!dom) {
+    // Genuinely monochrome set: warm stone that flatters B&W.
     h = 36;
     s = mode === 'blend' ? 0.18 : 0.3;
   } else if (mode === 'blend') {
-    s = Math.min(s * 0.45, 0.3);
+    h = dom.h;
+    s = Math.min(dom.s * 0.55, 0.42);
   } else {
-    h = (h + 180) % 360; // complementary accent, restrained
-    s = Math.min(Math.max(s * 0.7, 0.35), 0.55);
+    h = (dom.h + 180) % 360; // complementary accent, restrained
+    s = Math.min(Math.max(dom.s * 0.75, 0.35), 0.6);
   }
 
   // Lightness ladder fitted to the theme's band.
