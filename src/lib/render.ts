@@ -1,4 +1,5 @@
-import type { PhotoSlot, ResolvedLayout, Theme } from './types';
+import { CELL_H, CELL_W, autoGrid } from './layout';
+import type { PhotoSlot, Theme } from './types';
 
 /** Deterministic pseudo-random from index so preview is stable. */
 function jitterFor(index: number, maxDeg: number): number {
@@ -265,40 +266,51 @@ function drawVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
 }
 
 /**
- * Draw the full sheet.
- * - contain-fit smart resize: whole photo visible, no cropping ever,
- *   never upscaled past native (big slots become matted prints)
- * - caption strips live inside each slot when ANY photo has a caption
+ * Draw the full sheet at native 1x scale.
+ * - contain-fit: whole photo visible, no cropping ever
+ * - caption strip reserved when ANY photo has a caption (uniform look)
  */
+export function sheetSize(slotCount: number, theme: Theme, hasCaptions: boolean) {
+  const { cols, rows } = autoGrid(Math.max(slotCount, 1));
+  const capH = hasCaptions ? theme.captionHeight : 0;
+  const cellFullH = CELL_H + capH;
+  const W = theme.outerPad * 2 + cols * CELL_W + (cols - 1) * theme.gap;
+  const H = theme.outerPad * 2 + rows * cellFullH + (rows - 1) * theme.gap;
+  return { W, H, cols, rows, capH };
+}
+
 export function drawSheet(
   canvas: HTMLCanvasElement,
   slots: PhotoSlot[],
   theme: Theme,
-  layout: ResolvedLayout,
 ): { width: number; height: number } {
-  const { W, H, cells, capH } = layout;
-  const hasCaptions = capH > 0;
+  const hasCaptions = slots.some((s) => s.caption.trim().length > 0);
+  const count = Math.max(slots.length, 1);
+  const { W, H, cols, capH } = sheetSize(count, theme, hasCaptions);
+  const cellFullH = CELL_H + capH;
 
-  canvas.width = Math.max(1, Math.round(W));
-  canvas.height = Math.max(1, Math.round(H));
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
   if (!ctx) return { width: W, height: H };
 
   paintBackground(ctx, theme, W, H);
   drawTexture(ctx, theme, W, H);
 
-  cells.forEach((cell, i) => {
-    const { x, y, w, h } = cell;
-    const slot = slots[cell.slotIndex];
-    if (!slot) return; // exact-fit layouts always cover every cell
+  for (let i = 0; i < cols * Math.ceil(count / cols); i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = theme.outerPad + col * (CELL_W + theme.gap);
+    const y = theme.outerPad + row * (cellFullH + theme.gap);
+    const slot = slots[i];
 
     ctx.save();
     // Polaroid-style wiggle around cell center
     if (theme.jitterDeg) {
       const deg = jitterFor(i, theme.jitterDeg);
-      ctx.translate(x + w / 2, y + h / 2);
+      ctx.translate(x + CELL_W / 2, y + cellFullH / 2);
       ctx.rotate((deg * Math.PI) / 180);
-      ctx.translate(-(x + w / 2), -(y + h / 2));
+      ctx.translate(-(x + CELL_W / 2), -(y + cellFullH / 2));
     }
 
     // Cell card with optional drop shadow for depth
@@ -307,20 +319,20 @@ export function drawSheet(
       ctx.shadowColor = 'rgba(0,0,0,0.25)';
       ctx.shadowBlur = 60;
       ctx.shadowOffsetY = 24;
-      ctx.fillStyle = theme.cellBg;
-      roundRect(ctx, x, y, w, h, theme.radius);
+      ctx.fillStyle = slot ? theme.cellBg : 'rgba(127,127,127,0.18)';
+      roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
       ctx.restore();
     } else {
-      ctx.fillStyle = theme.cellBg;
-      roundRect(ctx, x, y, w, h, theme.radius);
+      ctx.fillStyle = slot ? theme.cellBg : 'rgba(127,127,127,0.18)';
+      roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
     }
     // Caption band BEFORE the border, so the rule stays crisp and
     // unbroken (painting it after ate the inner half of thick borders).
-    if (hasCaptions && theme.captionBg) {
+    if (slot && hasCaptions && capH > 0 && theme.captionBg) {
       ctx.fillStyle = theme.captionBg;
-      ctx.fillRect(x, y + h - capH, w, capH);
+      ctx.fillRect(x, y + CELL_H, CELL_W, capH);
     }
     // Refined border: theme-defined, or a whisper of definition
     ctx.save();
@@ -331,42 +343,53 @@ export function drawSheet(
       ctx.strokeStyle = 'rgba(0,0,0,0.12)';
       ctx.lineWidth = 3;
     }
-    roundRect(ctx, x, y, w, h, theme.radius);
+    roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
     ctx.stroke();
     ctx.restore();
 
-    // Smart resize: contain-fit into the mat frame, NEVER upscale past
-    // native (big slots become matted prints) and NEVER crop.
-    const px = x + theme.mat;
-    const py = y + theme.mat;
-    const pw = Math.max(1, w - theme.mat * 2);
-    const ph = Math.max(1, h - theme.mat - theme.matBottom - (hasCaptions ? capH : 0));
-    const bw = slot.bitmap.width;
-    const bh = slot.bitmap.height;
-    const scale = Math.min(pw / bw, ph / bh, 1);
-    const dw = Math.max(1, Math.floor(bw * scale));
-    const dh = Math.max(1, Math.floor(bh * scale));
-    const dx = px + Math.floor((pw - dw) / 2);
-    const dy = py + Math.floor((ph - dh) / 2);
-    ctx.save();
-    roundRect(ctx, x, y, w, h, theme.radius);
-    ctx.clip();
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(slot.bitmap, dx, dy, dw, dh);
+    if (slot) {
+      // contain-fit image into the mat frame (top part of card, inset by mat).
+      // Zero cropping ever — the mat just makes cellBg a visible frame.
+      const px = x + theme.mat;
+      const py = y + theme.mat;
+      const pw = CELL_W - theme.mat * 2;
+      const ph = CELL_H - theme.mat - theme.matBottom;
+      const bw = slot.bitmap.width;
+      const bh = slot.bitmap.height;
+      const scale = Math.min(pw / bw, ph / bh);
+      const dw = Math.floor(bw * scale);
+      const dh = Math.floor(bh * scale);
+      const dx = px + Math.floor((pw - dw) / 2);
+      const dy = py + Math.floor((ph - dh) / 2);
+      ctx.save();
+      roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
+      ctx.clip();
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(slot.bitmap, dx, dy, dw, dh);
 
-    // Caption text only — the band itself was painted before the border.
-    if (hasCaptions && slot.caption.trim()) {
-      const cy = y + h - capH;
-      ctx.fillStyle = theme.captionColor;
-      ctx.font = theme.captionFont;
+      // Caption text only — the band itself was painted before the border.
+      if (hasCaptions && slot.caption.trim()) {
+        const cy = y + CELL_H;
+        ctx.fillStyle = theme.captionColor;
+        ctx.font = theme.captionFont;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = slot.caption.trim().slice(0, 80);
+        ctx.fillText(label, x + CELL_W / 2, cy + capH / 2, CELL_W - 60);
+      } else if (hasCaptions) {
+        // empty caption space stays clean — keeps grid uniform
+      }
+      ctx.restore();
+    } else {
+      // Empty themed placeholder cell — tinted to match the theme
+      ctx.fillStyle = theme.placeholderColor;
+      ctx.font = '500 44px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = slot.caption.trim().slice(0, 80);
-      ctx.fillText(label, x + w / 2, cy + capH / 2, Math.max(1, w - 60));
+      ctx.fillText('drop a photo here', x + CELL_W / 2, y + cellFullH / 2);
     }
     ctx.restore();
-    ctx.restore();
-  });
+  }
 
   if (theme.grain) drawGrain(ctx, W, H, themeSeed(theme.id));
   if (theme.vignette) drawVignette(ctx, W, H);

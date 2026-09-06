@@ -20,41 +20,6 @@ export interface PhotoSlot {
   url: string; // object URL for thumbnails
   bitmap: ImageBitmap; // full-res decoded, orientation-corrected
   caption: string;
-  hash: string; // SHA-256 of file bytes, for duplicate detection
-}
-
-export type LayoutMode = 'mosaic' | 'justified' | 'freestyle';
-
-/** One slot in a mosaic template, in 12-col grid units. */
-export interface MosaicSlot {
-  c: number; // left column (0-11)
-  r: number; // top row
-  cs: number; // column span
-  rs: number; // row span
-}
-
-export interface MosaicTemplate {
-  id: string; // stable id, e.g. 'five-dice'
-  name: string; // human name shown in UI, e.g. 'Five-Dice'
-  n: number; // exact photo count it tiles — no placeholders, ever
-  slots: MosaicSlot[]; // length === n, authored in reading order
-}
-
-/** A photo box placed on the sheet, in native-scale pixels. */
-export interface PlacedCell {
-  slotIndex: number; // index into slots[] (tray order = assignment)
-  x: number; // photo-box left
-  y: number; // photo-box top
-  w: number; // photo-box width
-  h: number; // photo-box height (caption strip goes below)
-}
-
-export interface ResolvedLayout {
-  cells: PlacedCell[];
-  W: number;
-  H: number;
-  capH: number; // caption strip height (0 when no captions)
-  label: string; // e.g. 'Five-Dice (2 of 3)' or 'Freestyle #a3f9'
 }
 
 export interface Theme {

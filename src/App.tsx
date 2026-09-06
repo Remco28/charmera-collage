@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import confetti from 'canvas-confetti';
-import { randomSeed } from './lib/freestyle';
-import { resolveLayout } from './lib/layout';
-import { layoutsFor } from './lib/layouts';
+import { autoGrid } from './lib/layout';
 import { drawSheet, exportSheet } from './lib/render';
 import { THEME_CATEGORIES, THEME_LIST } from './lib/themes';
-import type { LayoutMode, PhotoSlot, ThemeId } from './lib/types';
+import type { PhotoSlot, ThemeCategory, ThemeId } from './lib/types';
 import type { ThemeCategoryFilter } from './lib/themes';
-import { hashFile } from './lib/dedupe';
 
-const MAX_PHOTOS = 12;
+const MAX_PHOTOS = 25;
 
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -54,44 +51,27 @@ function Collapsible({
   );
 }
 
-const MODES: { id: LayoutMode; label: string; hint: string }[] = [
-  { id: 'mosaic', label: 'Mosaic', hint: 'Curated hero layouts' },
-  { id: 'justified', label: 'Justified', hint: 'Clean full rows' },
-  { id: 'freestyle', label: 'Freestyle', hint: 'Fresh generative dice' },
-];
-
 export default function App() {
   const [slots, setSlots] = useState<PhotoSlot[]>([]);
   const [themeId, setThemeId] = useState<ThemeId>('darkroom');
   const [catFilter, setCatFilter] = useState<ThemeCategoryFilter>('All');
-  const [mode, setMode] = useState<LayoutMode>('mosaic');
-  const [variantIdx, setVariantIdx] = useState(0);
-  const [seed, setSeed] = useState(() => randomSeed());
   const [dragging, setDragging] = useState(false);
   const [shaking, setShaking] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [decoding, setDecoding] = useState<{ done: number; total: number } | null>(null);
-  const [pendingDupes, setPendingDupes] = useState<PhotoSlot[]>([]);
   const [format, setFormat] = useState<'png' | 'jpeg'>('png');
-  const [error, setError] = useState<string | null>(null);
   const [openTheme, setOpenTheme] = useState(true);
   const [openPhotos, setOpenPhotos] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const theme = THEME_LIST.find((t) => t.id === themeId) ?? THEME_LIST[0];
-  const mosaicCount = layoutsFor(slots.length).length;
-
-  const layout = useMemo(
-    () => resolveLayout(slots, theme, { mode, variantIdx, seed }),
-    [slots, theme, mode, variantIdx, seed],
-  );
-
-  // New photo count → back to the first mosaic variant.
-  useEffect(() => {
-    setVariantIdx(0);
-  }, [slots.length]);
+  const grid = autoGrid(Math.max(slots.length, 1));
+  const totalMB = slots.reduce((n, s) => n + s.file.size, 0) / 1_048_576;
+  const filteredThemes =
+    catFilter === 'All' ? THEME_LIST : THEME_LIST.filter((t) => t.category === (catFilter as ThemeCategory));
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     setError(null);
@@ -100,38 +80,26 @@ export default function App() {
       setError('Those files are not images — try JPG/PNG/WebP from the Charmera.');
       return;
     }
-    const room = MAX_PHOTOS - slots.length;
-    if (room <= 0) {
-      setError(`A dozen is plenty — remove something to add more (max ${MAX_PHOTOS}).`);
+    if (slots.length + imgs.length > MAX_PHOTOS) {
+      setError(`Whoa, keep it to ${MAX_PHOTOS} photos per sheet for now.`);
       return;
     }
-    const capped = imgs.slice(0, room);
-    if (imgs.length > room) setError(`Kept the first ${room} — a dozen max.`);
-    setDecoding({ done: 0, total: capped.length });
-    const known = new Set(slots.map((s) => s.hash));
-    const fresh: PhotoSlot[] = [];
-    const dupes: PhotoSlot[] = [];
-    for (let i = 0; i < capped.length; i++) {
-      const file = capped[i];
+    setDecoding({ done: 0, total: imgs.length });
+    const next: PhotoSlot[] = [];
+    for (let i = 0; i < imgs.length; i++) {
+      const file = imgs[i];
       try {
-        const [bitmap, hash] = await Promise.all([decodeFile(file), hashFile(file)]);
-        const entry: PhotoSlot = { id: uid(), file, url: URL.createObjectURL(file), bitmap, caption: '', hash };
-        if (known.has(hash)) dupes.push(entry);
-        else {
-          known.add(hash);
-          fresh.push(entry);
-        }
+        const bitmap = await decodeFile(file);
+        next.push({ id: uid(), file, url: URL.createObjectURL(file), bitmap, caption: '' });
       } catch {
         setError(`${file.name} could not be read. Skipped it.`);
       }
-      setDecoding({ done: i + 1, total: capped.length });
+      setDecoding({ done: i + 1, total: imgs.length });
     }
-    if (fresh.length > 0) setSlots((prev) => [...prev, ...fresh]);
-    setPendingDupes((prev) => [...prev, ...dupes]);
+    setSlots((prev) => [...prev, ...next]);
     setDecoding(null);
-  }, [slots]);
+  }, [slots.length]);
 
-  // Live redraw whenever photos, captions, theme, or layout change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -153,8 +121,8 @@ export default function App() {
       }
       return;
     }
-    drawSheet(canvas, slots, theme, layout);
-  }, [slots, theme, layout]);
+    drawSheet(canvas, slots, theme);
+  }, [slots, theme]);
 
   const removeSlot = (id: string) =>
     setSlots((prev) => {
@@ -166,7 +134,7 @@ export default function App() {
   const setCaption = (id: string, caption: string) =>
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, caption } : s)));
 
-  /** Drag reorder: tray order is the sheet order in every mode. */
+  /** Simple reorder via drag: tray order is sheet order. Preview redraws automatically. */
   const dropReorder = (targetId: string) =>
     setSlots((prev) => {
       if (!dragId || dragId === targetId) return prev;
@@ -181,29 +149,12 @@ export default function App() {
 
   const clearAll = () => {
     slots.forEach((s) => URL.revokeObjectURL(s.url));
-    pendingDupes.forEach((s) => URL.revokeObjectURL(s.url));
     setSlots([]);
-    setPendingDupes([]);
-  };
-
-  const acceptDupes = () => {
-    setSlots((prev) => [...prev, ...pendingDupes]);
-    setPendingDupes([]);
-  };
-
-  const dismissDupes = () => {
-    pendingDupes.forEach((s) => URL.revokeObjectURL(s.url));
-    setPendingDupes([]);
   };
 
   const surpriseTheme = () => {
     const others = THEME_LIST.filter((t) => t.id !== themeId);
     setThemeId(others[Math.floor(Math.random() * others.length)].id);
-  };
-
-  const shuffleLayout = () => {
-    if (mode === 'mosaic') setVariantIdx((i) => i + 1);
-    else if (mode === 'freestyle') setSeed(randomSeed());
   };
 
   const handleExport = async () => {
@@ -212,12 +163,12 @@ export default function App() {
     setShaking(true);
     setTimeout(() => setShaking(false), 650);
     try {
-      drawSheet(canvasRef.current, slots, theme, layout);
+      drawSheet(canvasRef.current, slots, theme);
       const blob = await exportSheet(canvasRef.current, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `charmera-${mode}-${slots.length}up.${format === 'jpeg' ? 'jpg' : 'png'}`;
+      a.download = `charmera-party-${grid.cols}x${grid.rows}.${format === 'jpeg' ? 'jpg' : 'png'}`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       confetti({ particleCount: 160, spread: 90, origin: { y: 0.7 }, disableForReducedMotion: true });
@@ -228,10 +179,6 @@ export default function App() {
     }
   };
 
-  const totalMB = slots.reduce((n, s) => n + s.file.size, 0) / 1_048_576;
-  const filteredThemes =
-    catFilter === 'All' ? THEME_LIST : THEME_LIST.filter((t) => t.category === catFilter);
-
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <header className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-3 px-6 pt-10">
@@ -239,8 +186,8 @@ export default function App() {
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-300">Kodak Charmera companion</p>
           <h1 className="mt-1 text-4xl font-black">charmera-collage 📸</h1>
           <p className="mt-2 max-w-xl text-neutral-300">
-            Drop up to a dozen tiny Charmera shots. Pick a layout, pick one of {THEME_LIST.length} themes —
-            no cropping, no empty cells, ever.
+            Drop a pile of tiny 1440×1080 Charmera shots. We auto-build a <span className="font-bold text-white">{grid.cols}×{grid.rows}</span> sheet
+            — no cropping, ever — with a theme that makes it look intentional.
           </p>
         </div>
         <div className="flex gap-2">
@@ -291,7 +238,7 @@ export default function App() {
             ) : (
               <>
                 <div className="text-5xl">✅</div>
-                <p className="mt-3 text-xl font-black">{slots.length} photo{slots.length === 1 ? '' : 's'} ready · {layout.label}</p>
+                <p className="mt-3 text-xl font-black">{slots.length} photo{slots.length === 1 ? '' : 's'} ready · {grid.cols}×{grid.rows}</p>
                 <p className="mt-1 text-sm text-neutral-400">
                   {totalMB.toFixed(1)} MB · drop more to add, or click to browse
                 </p>
@@ -360,7 +307,7 @@ export default function App() {
           {slots.length > 0 && (
             <Collapsible
               title={`Photos (${slots.length})`}
-              summary={<>tray order = sheet order · drag rows</>}
+              summary={<>{grid.cols}×{grid.rows} sheet · drag rows to reorder</>}
               open={openPhotos}
               onToggle={() => setOpenPhotos((v) => !v)}
             >
@@ -400,7 +347,9 @@ export default function App() {
           <div className="rounded-3xl bg-neutral-900 p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-neutral-400">
-                {slots.length === 0 ? 'Your sheet preview appears here' : `${theme.name} · ${layout.label} · no crop`}
+                {slots.length === 0
+                  ? 'Your sheet preview appears here'
+                  : `${theme.name} · auto ${grid.cols}×${grid.rows} · native pixels, no crop`}
               </p>
               <div className="flex gap-2 text-sm">
                 {(['png', 'jpeg'] as const).map((f) => (
@@ -414,32 +363,6 @@ export default function App() {
                 ))}
               </div>
             </div>
-
-            {/* Layout mode picker */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {MODES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMode(m.id)}
-                  title={m.hint}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold ${
-                    mode === m.id ? 'bg-amber-300 text-black' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-              {(mode === 'mosaic' && mosaicCount > 1) || mode === 'freestyle' ? (
-                <button
-                  onClick={shuffleLayout}
-                  title={mode === 'mosaic' ? 'Next curated variant' : 'Roll a fresh generative layout'}
-                  className="rounded-full bg-neutral-800 px-4 py-1.5 text-sm font-bold text-amber-300 hover:bg-neutral-700"
-                >
-                  {mode === 'mosaic' ? '⟳ Shuffle layout' : '🎲 Roll layout'}
-                </button>
-              ) : null}
-            </div>
-
             <canvas ref={canvasRef} className="max-h-[70vh] w-full rounded-2xl object-contain" />
           </div>
 
@@ -452,24 +375,9 @@ export default function App() {
           >
             {exporting ? 'Developing… 🧪' : '📸 Shake it like a Polaroid — Export!'}
           </button>
-          <p className="text-center text-xs text-neutral-500">Exports full-res PNG/JPG · smart-fit, never cropped. Free to share anywhere.</p>
+          <p className="text-center text-xs text-neutral-500">Exports full-res PNG/JPG · 3×3 of Charmera ≈ 4320px wide + theme padding. Free to share anywhere.</p>
         </section>
       </main>
-
-      {/* Duplicate toast */}
-      {pendingDupes.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-amber-300/40 bg-neutral-900 px-5 py-3 shadow-2xl">
-          <span className="text-sm">
-            ⚠️ {pendingDupes.length} duplicate{pendingDupes.length === 1 ? '' : 's'} skipped
-          </span>
-          <button onClick={acceptDupes} className="rounded-full bg-amber-300 px-3 py-1 text-xs font-black text-black hover:bg-amber-200">
-            Add anyway
-          </button>
-          <button onClick={dismissDupes} className="rounded-full bg-neutral-800 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-700">
-            Dismiss
-          </button>
-        </div>
-      )}
     </div>
   );
 }
