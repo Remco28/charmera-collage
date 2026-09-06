@@ -20,6 +20,7 @@ export interface PhotoSlot {
   url: string; // object URL for thumbnails
   bitmap: ImageBitmap; // full-res decoded, orientation-corrected
   caption: string;
+  hash: string; // SHA-256 of file bytes, for duplicate detection
 }
 
 export interface Theme {

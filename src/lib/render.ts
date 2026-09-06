@@ -1,5 +1,6 @@
-import { CELL_H, CELL_W, autoGrid } from './layout';
+import { CELL_H, CELL_W } from './layout';
 import type { PhotoSlot, Theme } from './types';
+import type { PlacedSheet } from './recipes';
 
 /** Deterministic pseudo-random from index so preview is stable. */
 function jitterFor(index: number, maxDeg: number): number {
@@ -266,28 +267,21 @@ function drawVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
 }
 
 /**
- * Draw the full sheet at native 1x scale.
- * - contain-fit: whole photo visible, no cropping ever
+ * Draw the full sheet of IDENTICAL cards positioned by a row recipe.
+ * - native pixels, no resizing, no cropping ever
+ * - exactly n cards, no placeholders — rows simply end
  * - caption strip reserved when ANY photo has a caption (uniform look)
  */
-export function sheetSize(slotCount: number, theme: Theme, hasCaptions: boolean) {
-  const { cols, rows } = autoGrid(Math.max(slotCount, 1));
-  const capH = hasCaptions ? theme.captionHeight : 0;
-  const cellFullH = CELL_H + capH;
-  const W = theme.outerPad * 2 + cols * CELL_W + (cols - 1) * theme.gap;
-  const H = theme.outerPad * 2 + rows * cellFullH + (rows - 1) * theme.gap;
-  return { W, H, cols, rows, capH };
-}
-
 export function drawSheet(
   canvas: HTMLCanvasElement,
   slots: PhotoSlot[],
   theme: Theme,
+  sheet: PlacedSheet,
 ): { width: number; height: number } {
   const hasCaptions = slots.some((s) => s.caption.trim().length > 0);
-  const count = Math.max(slots.length, 1);
-  const { W, H, cols, capH } = sheetSize(count, theme, hasCaptions);
+  const capH = hasCaptions ? theme.captionHeight : 0;
   const cellFullH = CELL_H + capH;
+  const { W, H } = sheet;
 
   canvas.width = W;
   canvas.height = H;
@@ -297,12 +291,11 @@ export function drawSheet(
   paintBackground(ctx, theme, W, H);
   drawTexture(ctx, theme, W, H);
 
-  for (let i = 0; i < cols * Math.ceil(count / cols); i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = theme.outerPad + col * (CELL_W + theme.gap);
-    const y = theme.outerPad + row * (cellFullH + theme.gap);
+  sheet.positions.forEach((pos, i) => {
+    const x = pos.x;
+    const y = pos.y;
     const slot = slots[i];
+    if (!slot) return;
 
     ctx.save();
     // Polaroid-style wiggle around cell center
@@ -330,7 +323,7 @@ export function drawSheet(
     }
     // Caption band BEFORE the border, so the rule stays crisp and
     // unbroken (painting it after ate the inner half of thick borders).
-    if (slot && hasCaptions && capH > 0 && theme.captionBg) {
+    if (hasCaptions && capH > 0 && theme.captionBg) {
       ctx.fillStyle = theme.captionBg;
       ctx.fillRect(x, y + CELL_H, CELL_W, capH);
     }
@@ -347,7 +340,8 @@ export function drawSheet(
     ctx.stroke();
     ctx.restore();
 
-    if (slot) {
+    // One sealed unit: photo + frame + caption. Identical size, always.
+    {
       // contain-fit image into the mat frame (top part of card, inset by mat).
       // Zero cropping ever — the mat just makes cellBg a visible frame.
       const px = x + theme.mat;
@@ -380,16 +374,9 @@ export function drawSheet(
         // empty caption space stays clean — keeps grid uniform
       }
       ctx.restore();
-    } else {
-      // Empty themed placeholder cell — tinted to match the theme
-      ctx.fillStyle = theme.placeholderColor;
-      ctx.font = '500 44px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('drop a photo here', x + CELL_W / 2, y + cellFullH / 2);
     }
     ctx.restore();
-  }
+  });
 
   if (theme.grain) drawGrain(ctx, W, H, themeSeed(theme.id));
   if (theme.vignette) drawVignette(ctx, W, H);
