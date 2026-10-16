@@ -53,8 +53,9 @@ export function paintCard(c: CardInput) {
 
   switch (theme.card) {
     case 'film': {
+      // Captions go on the sheet under the strip, not on the film.
       ctx.fillStyle = card;
-      ctx.fillRect(x, y, w, h);
+      ctx.fillRect(x, y, w, bodyH);
       const holes = 8;
       const pitch = w / holes;
       ctx.fillStyle = p.detail;
@@ -62,7 +63,7 @@ export function paintCard(c: CardInput) {
         const hx = x + k * pitch + (pitch - 84) / 2;
         roundRect(ctx, hx, y + 36, 84, 62, 12);
         ctx.fill();
-        roundRect(ctx, hx, y + h - 98, 84, 62, 12);
+        roundRect(ctx, hx, y + bodyH - 98, 84, 62, 12);
         ctx.fill();
       }
       // edge print: frame numbers below, film stock above
@@ -82,12 +83,12 @@ export function paintCard(c: CardInput) {
       drawPhoto(ctx, slot, photo);
       if (text) {
         ctx.save();
-        ctx.translate(x + w * 0.66, y + h - 70);
+        ctx.translate(x + w * 0.66, y + bodyH + theme.captionArea * 0.55);
         ctx.rotate(-0.035);
-        ctx.fillStyle = pick(p.accent, i);
         fitFont(ctx, theme.captionFont, text, w * 0.6);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.fillStyle = pick(p.accent, i);
         ctx.fillText(text, 0, 0, w * 0.62);
         ctx.restore();
       }

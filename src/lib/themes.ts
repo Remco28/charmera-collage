@@ -84,6 +84,7 @@ export const CONCEPTS: Concept[] = [
       ...DEFAULTS,
       card: 'film',
       border: { top: 190, right: 20, bottom: 190, left: 20 },
+      captionArea: 140,
       captionFont: `400 92px ${MARKER}`,
       gap: 0,
       rowGap: 110,
