@@ -471,8 +471,11 @@ export default function App() {
           </div>
         </div>
 
-        <div className="contents min-w-0 lg:block lg:space-y-5">
-          <section className="card order-3 p-4 sm:p-5">
+        <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-5">
+          {/* Desktop: the sheet rides along while you scroll the photos and themes, then settles
+              just above the export panel at the end of the column. */}
+          <div className="contents lg:block lg:flex-1">
+          <section className="card order-3 p-4 sm:p-5 lg:sticky lg:top-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="font-display text-2xl font-extrabold">Your sheet</h2>
@@ -521,7 +524,7 @@ export default function App() {
                   ref={canvasRef}
                   onPointerDown={pressSheet}
                   aria-label={`Preview of your ${slots.length}-photo sheet`}
-                  className={`max-h-[68vh] max-w-full rounded-sm object-contain shadow-[0_2px_0_rgba(29,26,36,0.2),0_14px_30px_rgba(29,26,36,0.22)] select-none [-webkit-touch-callout:none] ${
+                  className={`max-h-[68vh] max-w-full lg:max-h-[max(16rem,calc(100vh-23rem))] rounded-sm object-contain shadow-[0_2px_0_rgba(29,26,36,0.2),0_14px_30px_rgba(29,26,36,0.22)] select-none [-webkit-touch-callout:none] ${
                     slots.length > 1 ? (sheetDrag ? 'cursor-grabbing' : 'cursor-grab') : ''
                   }`}
                 />
@@ -550,6 +553,7 @@ export default function App() {
               </p>
             )}
           </section>
+          </div>
 
           <section className="card order-4 overflow-hidden">
             <div className="space-y-3 p-4 sm:p-5">

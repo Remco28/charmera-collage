@@ -127,8 +127,20 @@ export function paintCard(c: CardInput) {
       body(theme.radius, bodyH);
       drawPhoto(ctx, slot, photo);
       if (theme.card === 'taped') {
-        tape(ctx, x + 40, y + 18, -0.62, pick(p.accent, i), p.detail);
-        tape(ctx, x + w - 40, y + 18, 0.62, pick(p.accent, i + 1), p.detail);
+        // One roll per photo, so the pieces match. Three ways of sticking it down,
+        // chosen so neighbors never put two pieces corner to corner.
+        const roll = pick(p.accent, i);
+        const lean = (salt: number) => wobble(i, salt) * 0.1;
+        const style = i % 3;
+        if (style === 0) {
+          tape(ctx, x + w / 2 + wobble(i, 22) * 140, y + 8, lean(23), roll, p.detail, 470);
+        } else if (style === 1) {
+          tape(ctx, x + 50, y + 24, -0.66 + lean(24), roll, p.detail, 340);
+          tape(ctx, x + w - 50, y + 24, 0.66 + lean(26), roll, p.detail, 340);
+        } else {
+          tape(ctx, x + w - 50, y + 24, 0.7 + lean(24), roll, p.detail, 340);
+          tape(ctx, x + 50, y + bodyH - 24, 0.7 + lean(26), roll, p.detail, 340);
+        }
       } else {
         for (const [cx, cy, rot] of [[x, y, 0], [x + w, y, 1], [x + w, y + bodyH, 2], [x, y + bodyH, 3]] as const) {
           photoCorner(ctx, cx, cy, rot, pick(p.accent, i), p.detail);
@@ -446,25 +458,43 @@ function arrow(ctx: Ctx, x: number, y: number, s: number, color: string) {
 }
 
 /** Loose double loop around a frame, the way a picture editor marks the keeper. */
+/**
+ * One quick hand-drawn loop around the pick, the way a grease pencil circles a
+ * frame on a proof: slightly egg-shaped, one smooth stroke that runs past its
+ * start and lands a little outside it. Stays inside its own frame's strip.
+ */
 function greasePencilLoop(ctx: Ctx, r: Rect, color: string, i: number) {
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 11;
-  ctx.lineCap = 'round';
-  ctx.globalAlpha = 0.85;
   const cx = r.x + r.w / 2;
   const cy = r.y + r.h / 2;
-  for (let pass = 0; pass < 2; pass++) {
-    ctx.beginPath();
-    for (let a = 0; a <= Math.PI * 2.08; a += 0.05) {
-      const k = 1 + wobble(i * 7 + Math.round(a * 4), pass + 2) * 0.025;
-      const px = cx + Math.cos(a - 0.4) * (r.w * 0.56 + pass * 14) * k;
-      const py = cy + Math.sin(a - 0.4) * (r.h * 0.58 + pass * 10) * k;
-      if (a === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.stroke();
+  const rx = r.w / 2 - 40;
+  const ry = r.h / 2 + 50;
+  // Low-frequency, seeded wobble: smooth, never jagged.
+  const ph1 = wobble(i, 11) * Math.PI;
+  const ph2 = wobble(i, 13) * Math.PI;
+  const start = -2.2 + wobble(i, 17) * 0.3;
+  const turn = Math.PI * 2 + 0.45; // overshoot past the start
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 13;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  const steps = 160;
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    const a = start + t * turn;
+    // drifts outward over the loop, so the end crosses just outside the start
+    const grow = 1 - 0.035 + t * 0.06;
+    const wob = 1 + Math.sin(a * 2 + ph1) * 0.018 + Math.sin(a * 3 + ph2) * 0.012;
+    // egg shape: a touch wider along the top
+    const egg = 1 + Math.sin(a) * -0.025;
+    const px = cx + Math.cos(a) * rx * grow * wob * egg;
+    const py = cy + Math.sin(a) * ry * grow * wob;
+    if (k === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -565,8 +595,7 @@ function pin(ctx: Ctx, cx: number, cy: number, color: string, scale: number) {
 }
 
 /** A strip of washi tape across a corner, torn at both ends. */
-function tape(ctx: Ctx, cx: number, cy: number, rot: number, color: string, stripe: string) {
-  const tw = 380;
+function tape(ctx: Ctx, cx: number, cy: number, rot: number, color: string, stripe: string, tw = 380) {
   const th = 104;
   ctx.save();
   ctx.translate(cx, cy);

@@ -69,47 +69,94 @@ export function paintSurface(ctx: Ctx, theme: Theme, W: number, H: number) {
       break;
     }
     case 'wood': {
-      const plank = 380;
-      for (let y = 0, k = 0; y < H; y += plank, k++) {
-        const base = rand() < 0.5 ? c0 : c1;
-        const tone = shade(base, (rand() - 0.5) * 0.18);
-        const g = ctx.createLinearGradient(0, y, 0, y + plank);
-        g.addColorStop(0, shade(tone, 0.05));
-        g.addColorStop(1, shade(tone, -0.06));
+      // A finished tabletop: wide boards of fine, flowing grain with the odd
+      // cathedral figure, tight seams, warm light across the varnish, and a
+      // mug ring or two from whoever was here before.
+      const board = 520;
+      for (let y = 0, k = 0; y < H; y += board, k++) {
+        // boards from the same tree: small shifts in tone, not stripes
+        const tone = shade(c0, (rand() - 0.5) * 0.09 - (k % 2) * 0.03);
+        const g = ctx.createLinearGradient(0, y, 0, y + board);
+        g.addColorStop(0, shade(tone, 0.04));
+        g.addColorStop(0.5, tone);
+        g.addColorStop(1, shade(tone, -0.05));
         ctx.fillStyle = g;
-        ctx.fillRect(0, y, W, plank);
-        // grain: long gentle waves along the plank
-        ctx.lineWidth = 3;
-        for (let j = 0; j < 16; j++) {
-          ctx.strokeStyle = `rgba(60,30,10,${0.06 + rand() * 0.1})`;
-          const gy = y + rand() * plank;
-          const amp = 6 + rand() * 18;
-          const per = 600 + rand() * 900;
+        ctx.fillRect(0, y, W, board);
+
+        // long grain: many fine lines, each a slow double wave
+        for (let j = 0; j < 70; j++) {
+          const dark = rand() < 0.8;
+          ctx.strokeStyle = dark ? `rgba(70,35,12,${0.04 + rand() * 0.09})` : `rgba(255,228,190,${0.04 + rand() * 0.06})`;
+          ctx.lineWidth = 1.5 + rand() * 3.5;
+          const gy = y + rand() * board;
+          const a1 = 4 + rand() * 14;
+          const p1 = 900 + rand() * 1400;
+          const a2 = 2 + rand() * 5;
+          const p2 = 160 + rand() * 260;
           const ph = rand() * 10;
           ctx.beginPath();
-          for (let x = 0; x <= W; x += 40) {
-            const yy = gy + Math.sin(x / per + ph) * amp;
-            if (x === 0) ctx.moveTo(x, yy);
+          for (let x = -40; x <= W + 40; x += 30) {
+            const yy = gy + Math.sin(x / p1 + ph) * a1 + Math.sin(x / p2 + ph * 2) * a2;
+            if (x === -40) ctx.moveTo(x, yy);
             else ctx.lineTo(x, yy);
           }
           ctx.stroke();
         }
-        if (rand() < 0.5) {
-          // a knot
-          const kx = rand() * W;
-          const ky = y + plank * (0.3 + rand() * 0.4);
-          for (let r = 1; r <= 5; r++) {
-            ctx.strokeStyle = `rgba(70,35,12,${0.22 - r * 0.03})`;
+
+        // cathedral figure: nested arches where the saw cut across a growth ring
+        if (rand() < 0.75) {
+          const fx = rand() * W;
+          const fy = y + board * (0.55 + rand() * 0.3);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, y, W, board);
+          ctx.clip();
+          for (let r = 1; r <= 9; r++) {
+            ctx.strokeStyle = `rgba(80,40,14,${0.05 + (r % 3 === 0 ? 0.07 : 0.03)})`;
+            ctx.lineWidth = 2 + (r % 3 === 0 ? 2.5 : 0);
             ctx.beginPath();
-            ctx.ellipse(kx, ky, 14 * r * 2.2, 9 * r, 0, 0, Math.PI * 2);
+            ctx.ellipse(fx, fy, 160 + r * 120, 22 + r * 26, 0, Math.PI, Math.PI * 2);
             ctx.stroke();
           }
+          ctx.restore();
         }
-        ctx.fillStyle = 'rgba(40,20,8,0.45)';
-        ctx.fillRect(0, y + plank - 4, W, 4);
-        // stagger the end seams
-        ctx.fillRect(((k * 0.37) % 1) * W, y, 4, plank);
+
+        // seam: a dark hairline with a lit bevel under it
+        ctx.fillStyle = 'rgba(45,22,8,0.5)';
+        ctx.fillRect(0, y + board - 3, W, 3);
+        ctx.fillStyle = 'rgba(255,230,195,0.14)';
+        ctx.fillRect(0, y + board, W, 2);
       }
+
+      // mug rings, under the photos, never quite closed
+      const rings = area > 2e7 ? 2 : 1;
+      for (let m = 0; m < rings; m++) {
+        const mx = W * (0.15 + rand() * 0.7);
+        const my = H * (0.15 + rand() * 0.7);
+        const r = 300 + rand() * 40;
+        const gap = rand() * Math.PI * 2;
+        ctx.fillStyle = 'rgba(70,35,10,0.035)';
+        ctx.beginPath();
+        ctx.arc(mx, my, r, 0, Math.PI * 2);
+        ctx.fill();
+        for (let pass = 0; pass < 3; pass++) {
+          ctx.strokeStyle = `rgba(70,35,10,${0.1 + pass * 0.04})`;
+          ctx.lineWidth = 10 - pass * 3;
+          ctx.beginPath();
+          ctx.arc(mx + pass * 3, my - pass * 2, r - pass * 4, gap + 0.3 + pass * 0.2, gap + Math.PI * 2 - 0.25);
+          ctx.stroke();
+        }
+      }
+
+      // warm light across the varnish, falling off toward the far edges
+      const lx = W * 0.3;
+      const ly = H * 0.2;
+      const light = ctx.createRadialGradient(lx, ly, 0, lx, ly, Math.max(W, H) * 0.9);
+      light.addColorStop(0, 'rgba(255,236,200,0.22)');
+      light.addColorStop(0.5, 'rgba(255,236,200,0.04)');
+      light.addColorStop(1, 'rgba(40,18,6,0.28)');
+      ctx.fillStyle = light;
+      ctx.fillRect(0, 0, W, H);
       break;
     }
     case 'formica': {
