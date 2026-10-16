@@ -76,6 +76,7 @@ export interface PlacedSheet {
 
 /**
  * Position identical cards (cardW x cardFullH each) in recipe rows.
+ * `gap` separates cards within a row, `rowGap` separates rows.
  * Ragged rows are centered, or left-aligned contact-sheet style.
  */
 export function placeRecipe(
@@ -88,6 +89,7 @@ export function placeRecipe(
   align: RowAlign,
   variantIdx: number,
   variantCount: number,
+  rowGap = gap,
 ): PlacedSheet {
   const rowWidth = (len: number) => len * cardW + (len - 1) * gap;
   const sheetW = Math.max(...recipe.rows.map(rowWidth)) + pad * 2;
@@ -95,12 +97,12 @@ export function placeRecipe(
   recipe.rows.forEach((len, ri) => {
     const w = rowWidth(len);
     const x0 = align === 'centered' ? pad + (sheetW - pad * 2 - w) / 2 : pad;
-    const y = pad + ri * (cardFullH + gap);
+    const y = pad + ri * (cardFullH + rowGap);
     for (let k = 0; k < len && positions.length < n; k++) {
       positions.push({ x: x0 + k * (cardW + gap), y });
     }
   });
-  const H = pad + recipe.rows.length * cardFullH + (recipe.rows.length - 1) * gap + pad;
+  const H = pad + recipe.rows.length * cardFullH + (recipe.rows.length - 1) * rowGap + pad;
   const label =
     variantCount > 1
       ? `${recipe.name} (${(variantIdx % variantCount) + 1} of ${variantCount})`

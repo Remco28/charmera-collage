@@ -1,22 +1,69 @@
-export type ThemeCategory = 'Dark' | 'Light' | 'Retro' | 'Playful' | 'Elegant' | 'Nature';
+/**
+ * A theme is one colorway of a concept. The concept is a real photo object
+ * (contact sheet, instant print, slide mount...) and decides how a card is
+ * built and drawn; the colorway only picks palette and surface.
+ */
+export type ConceptId =
+  | 'contact' | 'prints' | 'instant' | 'clothesline' | 'scrapbook' | 'stickers' | 'lightbox'
+  | 'gallery' | 'corkboard' | 'cyanotype' | 'zine' | 'flash' | 'stamps' | 'float';
 
-export type TextureKind =
-  | 'none' | 'dots' | 'stripes' | 'halftone' | 'rays' | 'weave'
-  | 'stars' | 'sprinkles' | 'terrazzo' | 'grid' | 'fiber' | 'lightleak'
-  | 'checker';
+/** How a single card is drawn around its photo. */
+export type CardKind =
+  | 'film' | 'print' | 'instant' | 'pegged' | 'taped' | 'cornered' | 'sticker' | 'slide'
+  | 'framed' | 'pinned' | 'plate' | 'zine' | 'flash' | 'stamp' | 'bare';
 
-/** Frame intensity override. None/hairline apply uniformly to any theme. */
-export type FrameLevel = 'none' | 'hairline' | 'standard';
+/** What the sheet itself is: the table, wall or page the cards sit on. */
+export type SurfaceKind =
+  | 'paper' | 'safelight' | 'wood' | 'formica' | 'sky' | 'kraft' | 'graph' | 'album'
+  | 'sprinkles' | 'stars' | 'halftone' | 'lightbox' | 'wall' | 'cork' | 'cyan' | 'xerox'
+  | 'night' | 'airmail';
 
-export type ThemeId =
-  | 'darkroom' | 'polaroid' | 'gallery' | 'y2k' | 'playground'
-  | 'midnight-neon' | 'espresso' | 'forest' | 'ocean' | 'desert'
-  | 'sakura' | 'mono-ink' | 'blueprint' | 'newsprint' | 'noir'
-  | 'disco' | 'candy' | 'pastel' | 'bauhaus' | 'chalkboard' | 'golden'
-  | 'pop-art' | 'sunburst' | 'linen' | 'starry' | 'confetti'
-  | 'terrazzo' | 'studio' | 'ember' | 'dusk' | 'kraft'
-  | 'soda' | 'tuxedo' | 'nautical' | 'matcha' | 'royal'
-  | 'seamless' | 'float' | 'night-float' | 'sticker';
+export interface Palette {
+  /** Surface base colors (1–2 stops). Replaced by the photo harmonizer when the theme is tintable. */
+  surface: string[];
+  /** Card body (border, mat, mount). Several entries cycle per card. */
+  card: string[];
+  /** Main mark color: captions, numbers, rules. */
+  ink: string;
+  /** Second mark color: tape, pins, stamps, labels. Several entries cycle per card. */
+  accent: string[];
+  /** Third color for details (frame moulding, sprocket band, glow). */
+  detail: string;
+}
+
+export interface Theme {
+  /** Stable id, `${concept}-${colorway}`; stored in prefs. */
+  id: string;
+  concept: ConceptId;
+  conceptName: string;
+  /** Colorway name, e.g. 'Kitchen Table'. */
+  name: string;
+  tagline: string;
+  card: CardKind;
+  surface: SurfaceKind;
+  palette: Palette;
+  /** Card border around the native 1440×1080 photo, sheet pixels. */
+  border: { top: number; right: number; bottom: number; left: number };
+  /** Extra card height added below the photo when any photo has a caption. */
+  captionArea: number;
+  captionFont: string;
+  /** Space between cards in a row, between rows, and around the sheet. */
+  gap: number;
+  rowGap: number;
+  pad: number;
+  radius: number;
+  /** Max per-card tilt in degrees (seeded, stable). */
+  jitterDeg: number;
+  /** Soft cast shadow under each card. */
+  shadow: 'none' | 'soft' | 'lifted' | 'glow';
+  /** Film grain over the whole sheet. */
+  grain: boolean;
+  vignette: boolean;
+  /** Orange date stamp burned into the photo corner, like a disposable. */
+  dateStamp: boolean;
+  /** Photo-matched background allowed (surface is a plain color, not wood or cork). */
+  tintable: boolean;
+}
 
 export interface PhotoSlot {
   id: string;
@@ -25,44 +72,6 @@ export interface PhotoSlot {
   bitmap: ImageBitmap; // full-res decoded, orientation-corrected
   caption: string;
   hash: string; // SHA-256 of file bytes, for duplicate detection
-}
-
-export interface Theme {
-  id: ThemeId;
-  name: string;
-  tagline: string;
-  category: ThemeCategory;
-  /** canvas background fill (solid or gradient stops) */
-  bg: string[];
-  cellBg: string;
-  gap: number;
-  outerPad: number;
-  radius: number;
-  captionHeight: number;
-  captionFont: string;
-  captionColor: string;
-  captionBg: string | null;
-  grain: boolean;
-  vignette: boolean;
-  jitterDeg: number;
-  swatch: string; // css preview for picker button
-  borderColor: string | null;
-  borderWidth: number;
-  shadow: boolean;
-  /** Soft-shadow tuning for float effects (defaults when omitted). */
-  shadowBlur?: number;
-  shadowOffsetY?: number;
-  /** Procedural background texture. Tuned to read in narrow gutters. */
-  texture: TextureKind;
-  /** Override tint for the texture (null = painter default). */
-  textureColor: string | null;
-  /** Background gradient shape. */
-  bgStyle: 'linear' | 'radial';
-  placeholderColor: string;
-  /** False = photo floats frameless (no card/mat/border/captions). */
-  framed: boolean;
-  /** Inner mat: photo is inset by mat on top/left/right, matBottom below.
-   *  Makes the cellBg a visible frame around every photo. */
-  mat: number;
-  matBottom: number;
+  /** When the photo was taken (EXIF), else the file's modified time. */
+  taken: Date;
 }

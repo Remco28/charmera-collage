@@ -2,16 +2,12 @@ import { BODIES } from './bodies';
 import type { BodyId } from './bodies';
 import type { BgMatch } from './harmonize';
 import type { RowAlign } from './recipes';
-import { THEME_CATEGORIES, THEMES } from './themes';
-import type { ThemeCategoryFilter } from './themes';
-import type { FrameLevel, ThemeId } from './types';
+import { DEFAULT_THEME_ID, LEGACY_THEME_IDS, THEMES } from './themes';
 
 /** Look-and-export settings remembered in this browser between visits. Photos are never stored. */
 export interface Prefs {
-  themeId: ThemeId;
-  catFilter: ThemeCategoryFilter;
+  themeId: string;
   align: RowAlign;
-  frameLevel: FrameLevel;
   bgMatch: BgMatch;
   format: 'png' | 'jpeg';
   size: 'full' | 'phone';
@@ -19,10 +15,8 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  themeId: 'darkroom',
-  catFilter: 'All',
+  themeId: DEFAULT_THEME_ID,
   align: 'centered',
-  frameLevel: 'standard',
   bgMatch: 'off',
   format: 'png',
   size: 'full',
@@ -46,15 +40,20 @@ export function parsePrefs(raw: string | null): Prefs {
   }
   const d = DEFAULT_PREFS;
   return {
-    themeId: pick(data.themeId, Object.keys(THEMES) as ThemeId[], d.themeId),
-    catFilter: pick(data.catFilter, THEME_CATEGORIES, d.catFilter),
+    themeId: themeIdFrom(data.themeId),
     align: pick(data.align, ['centered', 'contact'] as const, d.align),
-    frameLevel: pick(data.frameLevel, ['none', 'hairline', 'standard'] as const, d.frameLevel),
     bgMatch: pick(data.bgMatch, ['off', 'blend', 'contrast'] as const, d.bgMatch),
     format: pick(data.format, ['png', 'jpeg'] as const, d.format),
     size: pick(data.size, ['full', 'phone'] as const, d.size),
     body: pick(data.body, BODIES.map((b) => b.id), d.body),
   };
+}
+
+/** Current theme ids pass; ids from before the concept redesign map to their nearest look. */
+function themeIdFrom(value: unknown): string {
+  if (typeof value !== 'string') return DEFAULT_THEME_ID;
+  if (THEMES[value]) return value;
+  return LEGACY_THEME_IDS[value] ?? DEFAULT_THEME_ID;
 }
 
 export function loadPrefs(): Prefs {

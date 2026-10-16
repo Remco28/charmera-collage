@@ -6,18 +6,19 @@ import { PhotoTray } from './components/PhotoTray';
 import { ThemePicker } from './components/ThemePicker';
 import { Collapsible, Segmented } from './components/ui';
 import { BODIES, RAINBOW, bodyById } from './lib/bodies';
-import { applyFrame } from './lib/frame';
+import { anyCaptions, cardBox } from './lib/card';
+import { exifDate } from './lib/exif';
+import { loadSheetFonts } from './lib/fonts';
 import { bgIsDark, harmonizeBackground, samplePhotoPixels } from './lib/harmonize';
 import type { WeightedPixel } from './lib/harmonize';
-import { CELL_H, CELL_W } from './lib/layout';
 import { loadPrefs, savePrefs } from './lib/prefs';
 import type { Prefs } from './lib/prefs';
 import { placeRecipe, recipesFor } from './lib/recipes';
 import { MAX_SAFE_PIXELS, drawSheet, renderSheetBlob, safeScale } from './lib/render';
-import { THEME_LIST } from './lib/themes';
+import { THEMES, THEME_LIST } from './lib/themes';
 import { tiltFor } from './lib/tilt';
 import type { PhotoSlot } from './lib/types';
-import { hashFile } from './lib/dedupe';
+import { hashBytes } from './lib/dedupe';
 
 const MAX_PHOTOS = 12;
 /** Longest side of the on-screen preview. Export always renders separately. */
@@ -68,8 +69,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [openTheme, setOpenTheme] = useState(true);
   const [openPhotos, setOpenPhotos] = useState(true);
+  const [fontsReady, setFontsReady] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const busyRef = useRef(false);
+
+  useEffect(() => {
+    void loadSheetFonts().then(() => setFontsReady(true));
+  }, []);
 
   const set = <K extends keyof Prefs>(key: K, value: Prefs[K]) => setPrefs((p) => ({ ...p, [key]: value }));
   useEffect(() => savePrefs(prefs), [prefs]);
@@ -81,27 +87,26 @@ export default function App() {
     root.setProperty('--accent-ink', body.accentInk);
   }, [body]);
 
-  const theme = THEME_LIST.find((t) => t.id === prefs.themeId) ?? THEME_LIST[0];
+  const theme = THEMES[prefs.themeId] ?? THEME_LIST[0];
   const variants = recipesFor(slots.length);
   const recipeIdx = recipePick.count === slots.length ? recipePick.idx : 0;
 
-  // Effective theme = frame intensity + optional photo-matched background.
+  // Effective theme = the theme, with its surface optionally tinted from the photos.
   // One object flows into placer + renderer, so everything stays consistent.
   const effTheme = useMemo(() => {
-    const base = applyFrame(theme, prefs.frameLevel);
-    if (prefs.bgMatch === 'off' || slots.length === 0) return base;
+    if (prefs.bgMatch === 'off' || slots.length === 0 || !theme.tintable) return theme;
     const pixels = slots.flatMap((s) => samplesFor(s.bitmap));
-    const stops = harmonizeBackground(pixels, base.bg.length, prefs.bgMatch, bgIsDark(theme.bg));
-    return stops.length > 0 ? { ...base, bg: stops } : base;
-  }, [slots, theme, prefs.frameLevel, prefs.bgMatch]);
+    const stops = harmonizeBackground(pixels, 2, prefs.bgMatch, bgIsDark(theme.palette.surface));
+    return stops.length > 0 ? { ...theme, palette: { ...theme.palette, surface: stops } } : theme;
+  }, [slots, theme, prefs.bgMatch]);
 
-  // Identical cards, arranged by the chosen row recipe. Never resized.
+  // Identical cards, arranged by the chosen row recipe. Photos keep native size.
   const sheet = useMemo(() => {
     const list = recipesFor(slots.length);
     const recipe = list[recipeIdx % Math.max(1, list.length)];
     if (!recipe) return null;
-    const capH = effTheme.framed && slots.some((s) => s.caption.trim().length > 0) ? effTheme.captionHeight : 0;
-    return placeRecipe(recipe, slots.length, effTheme.gap, effTheme.outerPad, CELL_W, CELL_H + capH, prefs.align, recipeIdx, list.length);
+    const { w, h } = cardBox(effTheme, anyCaptions(slots));
+    return placeRecipe(recipe, slots.length, effTheme.gap, effTheme.pad, w, h, prefs.align, recipeIdx, list.length, effTheme.rowGap);
   }, [slots, effTheme, recipeIdx, prefs.align]);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
@@ -132,8 +137,10 @@ export default function App() {
     for (let i = 0; i < capped.length; i++) {
       const file = capped[i];
       try {
-        const [bitmap, hash] = await Promise.all([decodeFile(file), hashFile(file)]);
-        const entry: PhotoSlot = { id: uid(), file, url: URL.createObjectURL(file), bitmap, caption: '', hash };
+        const buf = await file.arrayBuffer();
+        const [bitmap, hash] = await Promise.all([decodeFile(file), hashBytes(buf, file)]);
+        const taken = exifDate(buf) ?? new Date(file.lastModified || Date.now());
+        const entry: PhotoSlot = { id: uid(), file, url: URL.createObjectURL(file), bitmap, caption: '', hash, taken };
         if (known.has(hash)) dupes.push(entry);
         else {
           known.add(hash);
@@ -193,13 +200,13 @@ export default function App() {
   // Live preview, drawn small and at most once per frame so typing stays smooth.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !sheet || slots.length === 0) return;
+    if (!canvas || !sheet || slots.length === 0 || !fontsReady) return;
     const raf = requestAnimationFrame(() => {
       const scale = Math.min(1, PREVIEW_MAX_SIDE / Math.max(sheet.W, sheet.H));
       drawSheet(canvas, slots, effTheme, sheet, scale);
     });
     return () => cancelAnimationFrame(raf);
-  }, [slots, effTheme, sheet]);
+  }, [slots, effTheme, sheet, fontsReady]);
 
   const removeSlot = (id: string) => {
     const found = slots.find((s) => s.id === id);
@@ -255,8 +262,7 @@ export default function App() {
   };
 
   const surpriseTheme = () => {
-    const shown = prefs.catFilter === 'All' ? THEME_LIST : THEME_LIST.filter((t) => t.category === prefs.catFilter);
-    const pool = (shown.length > 1 ? shown : THEME_LIST).filter((t) => t.id !== prefs.themeId);
+    const pool = THEME_LIST.filter((t) => t.id !== prefs.themeId);
     set('themeId', pool[Math.floor(Math.random() * pool.length)].id);
   };
 
@@ -271,6 +277,7 @@ export default function App() {
     setFlashKey((k) => k + 1);
     setTimeout(() => setShaking(false), 650);
     try {
+      await loadSheetFonts();
       const wantPhone = prefs.size === 'phone' && tooBigForPhone;
       let out = await renderSheetBlob(slots, effTheme, sheet, prefs.format, wantPhone ? phoneScale : 1);
       let fellBack = false;
@@ -356,7 +363,7 @@ export default function App() {
             <div className="order-5">
             <Collapsible
               title="Photos"
-              summary={theme.framed ? 'in sheet order' : 'captions hidden'}
+              summary="in sheet order"
               open={openPhotos}
               onToggle={() => setOpenPhotos((v) => !v)}
               actions={
@@ -367,8 +374,6 @@ export default function App() {
             >
               <PhotoTray
                 slots={slots}
-                framed={theme.framed}
-                themeName={theme.name}
                 onCaption={setCaption}
                 onMove={move}
                 onReorder={reorder}
@@ -381,7 +386,7 @@ export default function App() {
           <div className="order-6">
           <Collapsible
             title="Theme"
-            summary={theme.name}
+            summary={`${theme.conceptName} · ${theme.name}`}
             open={openTheme}
             onToggle={() => setOpenTheme((v) => !v)}
             actions={
@@ -390,13 +395,7 @@ export default function App() {
               </button>
             }
           >
-            <ThemePicker
-              themes={THEME_LIST}
-              themeId={prefs.themeId}
-              catFilter={prefs.catFilter}
-              onFilter={(c) => set('catFilter', c)}
-              onPick={(id) => set('themeId', id)}
-            />
+            <ThemePicker themeId={prefs.themeId} onPick={(id) => set('themeId', id)} slots={slots} fontsReady={fontsReady} />
           </Collapsible>
           </div>
         </div>
@@ -407,7 +406,7 @@ export default function App() {
               <div className="min-w-0">
                 <h2 className="font-display text-2xl font-extrabold">Your sheet</h2>
                 <p className="truncate text-sm text-muted">
-                  {sheet ? `${theme.name} · ${sheet.label}` : 'Add photos to see it develop'}
+                  {sheet ? `${theme.conceptName}, ${theme.name} · ${sheet.label}` : 'Add photos to see it develop'}
                 </p>
               </div>
               {variants.length > 1 && (
@@ -432,22 +431,11 @@ export default function App() {
                 ]}
               />
               <Segmented
-                label="Frame"
-                value={prefs.frameLevel}
-                onChange={(v) => set('frameLevel', v)}
-                disabled={!theme.framed}
-                title={theme.framed ? 'Frame thickness, the same in every theme' : `${theme.name} has no frame`}
-                options={[
-                  { value: 'none', label: 'None' },
-                  { value: 'hairline', label: 'Hairline' },
-                  { value: 'standard', label: 'Standard' },
-                ]}
-              />
-              <Segmented
                 label="Background"
                 value={prefs.bgMatch}
                 onChange={(v) => set('bgMatch', v)}
-                title="Tint the background from your photos"
+                disabled={!theme.tintable}
+                title={theme.tintable ? 'Tint the background from your photos' : `${theme.conceptName} keeps its own surface`}
                 options={[
                   { value: 'off', label: 'Theme' },
                   { value: 'blend', label: 'Blend', title: 'Pick up the main color in your photos' },
@@ -502,10 +490,10 @@ export default function App() {
                     value={prefs.size}
                     onChange={(v) => set('size', v)}
                     options={[
-                      { value: 'full', label: `Full · ${megapixels(sheet.W, sheet.H).toFixed(0)} MP` },
+                      { value: 'full', label: `Full · ${megapixels(sheet.W, sheet.H).toFixed(1)} MP` },
                       {
                         value: 'phone',
-                        label: `Phone · ${megapixels(sheet.W * phoneScale, sheet.H * phoneScale).toFixed(0)} MP`,
+                        label: `Phone · ${megapixels(sheet.W * phoneScale, sheet.H * phoneScale).toFixed(1)} MP`,
                       },
                     ]}
                   />

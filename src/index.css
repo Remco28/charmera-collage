@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/caveat";
+/* Sheet fonts, used on the canvas by the themes (see src/lib/fonts.ts). */
+@import "@fontsource/permanent-marker";
+@import "@fontsource/special-elite";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/fraunces/wght-italic.css";
 
 @theme {
   --font-display: "Bricolage Grotesque Variable", ui-rounded, system-ui, sans-serif;

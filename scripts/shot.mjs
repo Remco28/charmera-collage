@@ -1,6 +1,7 @@
 // Drive headless Chrome over CDP: load app, attach photos, set caption, screenshot.
 // node scripts/shot.mjs <url> <out.png> <width> <height> <photosDir|-> [count]
 // Needs a running server (npm run dev or npm run preview). EXPORT_DIR=dir also clicks export (full, then phone size).
+// PREFS='{"themeId":"gallery-salon"}' presets saved settings first.
 import { spawn } from 'node:child_process';
 import { readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,11 +16,16 @@ try {
   await new Promise((r) => ws.addEventListener('open', r));
   let id = 0; const pending = new Map(); const logs = [];
   ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } if (d.method === 'Runtime.exceptionThrown' || (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error')) logs.push(JSON.stringify(d.params).slice(0, 300)); });
-  const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+  const send = (method, params = {}) => new Promise((r) => { if (process.env.DEBUG) console.error('>', method); const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
   await send('Runtime.enable'); await send('Page.enable'); await send('DOM.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: +w, height: +h, deviceScaleFactor: 1, mobile: +w < 600 });
   await send('Page.navigate', { url }); await sleep(2000);
   const ev = async (expr) => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
+  if (process.env.PREFS) {
+    // PREFS='{"themeId":"gallery-salon"}' presets saved settings, then reloads.
+    await ev(`localStorage.setItem('charmera-collage:prefs:v1', ${JSON.stringify(process.env.PREFS)})`);
+    await send('Page.navigate', { url }); await sleep(2000);
+  }
   if (dir !== '-') {
     const files = readdirSync(dir).sort().slice(0, +count).map((f) => `${dir}/${f}`);
     const doc = await send('DOM.getDocument');

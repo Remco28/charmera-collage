@@ -1,0 +1,415 @@
+import type { Theme } from '../types';
+import { mulberry32, roundRect, seedOf, shade } from './util';
+import type { Ctx } from './util';
+
+/**
+ * The thing the cards sit on. Marks are sized for a sheet seen whole
+ * (a few thousand px wide) and seeded, so preview and export match.
+ */
+export function paintSurface(ctx: Ctx, theme: Theme, W: number, H: number) {
+  const p = theme.palette;
+  const [c0, c1 = c0] = p.surface;
+  const rand = mulberry32(seedOf(theme.id));
+  const area = W * H;
+
+  const diagonal = () => {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, c0);
+    g.addColorStop(1, c1);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  };
+  const blobs = (count: number, rMin: number, rMax: number, color: (i: number) => string) => {
+    for (let i = 0; i < count; i++) {
+      const x = rand() * W;
+      const y = rand() * H;
+      const r = rMin + rand() * (rMax - rMin);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, color(i));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  };
+
+  ctx.save();
+  switch (theme.surface) {
+    case 'paper': {
+      diagonal();
+      // faint paper fiber
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = isDarkish(c0) ? 'rgba(255,255,255,0.025)' : 'rgba(80,60,40,0.035)';
+      ctx.beginPath();
+      for (let i = 0; i < area / 9000; i++) {
+        const x = rand() * W;
+        const y = rand() * H;
+        const a = rand() * Math.PI;
+        const l = 8 + rand() * 22;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+      }
+      ctx.stroke();
+      break;
+    }
+    case 'safelight': {
+      ctx.fillStyle = c0;
+      ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(W * 0.5, -H * 0.15, 0, W * 0.5, -H * 0.15, Math.max(W, H) * 1.05);
+      g.addColorStop(0, c1);
+      g.addColorStop(0.55, shade(c1, -0.55));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      break;
+    }
+    case 'wood': {
+      const plank = 380;
+      for (let y = 0, k = 0; y < H; y += plank, k++) {
+        const base = rand() < 0.5 ? c0 : c1;
+        const tone = shade(base, (rand() - 0.5) * 0.18);
+        const g = ctx.createLinearGradient(0, y, 0, y + plank);
+        g.addColorStop(0, shade(tone, 0.05));
+        g.addColorStop(1, shade(tone, -0.06));
+        ctx.fillStyle = g;
+        ctx.fillRect(0, y, W, plank);
+        // grain: long gentle waves along the plank
+        ctx.lineWidth = 3;
+        for (let j = 0; j < 16; j++) {
+          ctx.strokeStyle = `rgba(60,30,10,${0.06 + rand() * 0.1})`;
+          const gy = y + rand() * plank;
+          const amp = 6 + rand() * 18;
+          const per = 600 + rand() * 900;
+          const ph = rand() * 10;
+          ctx.beginPath();
+          for (let x = 0; x <= W; x += 40) {
+            const yy = gy + Math.sin(x / per + ph) * amp;
+            if (x === 0) ctx.moveTo(x, yy);
+            else ctx.lineTo(x, yy);
+          }
+          ctx.stroke();
+        }
+        if (rand() < 0.5) {
+          // a knot
+          const kx = rand() * W;
+          const ky = y + plank * (0.3 + rand() * 0.4);
+          for (let r = 1; r <= 5; r++) {
+            ctx.strokeStyle = `rgba(70,35,12,${0.22 - r * 0.03})`;
+            ctx.beginPath();
+            ctx.ellipse(kx, ky, 14 * r * 2.2, 9 * r, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+        ctx.fillStyle = 'rgba(40,20,8,0.45)';
+        ctx.fillRect(0, y + plank - 4, W, 4);
+        // stagger the end seams
+        ctx.fillRect(((k * 0.37) % 1) * W, y, 4, plank);
+      }
+      break;
+    }
+    case 'formica': {
+      diagonal();
+      const flecks = ['rgba(255,255,255,0.55)', 'rgba(40,90,80,0.22)', 'rgba(228,106,90,0.35)', 'rgba(255,255,255,0.3)'];
+      for (let i = 0; i < area / 7000; i++) {
+        ctx.fillStyle = flecks[i % flecks.length];
+        ctx.beginPath();
+        ctx.ellipse(rand() * W, rand() * H, 2 + rand() * 5, 1.5 + rand() * 3, rand() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // a few mid-century boomerangs
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < area / 900_000; i++) {
+        ctx.strokeStyle = i % 2 ? 'rgba(228,106,90,0.3)' : 'rgba(40,90,80,0.18)';
+        const x = rand() * W;
+        const y = rand() * H;
+        const a = rand() * Math.PI * 2;
+        const s = 50 + rand() * 40;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * s, y + Math.sin(a) * s);
+        ctx.quadraticCurveTo(x, y, x + Math.cos(a + 1.9) * s, y + Math.sin(a + 1.9) * s);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'sky': {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, c0);
+      g.addColorStop(1, c1);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      // soft clouds from overlapping puffs
+      for (let i = 0; i < Math.max(4, area / 2_500_000); i++) {
+        const cx = rand() * W;
+        const cy = rand() * H * 0.85;
+        const s = 160 + rand() * 220;
+        for (let k = 0; k < 6; k++) {
+          const x = cx + (rand() - 0.5) * s * 2.4;
+          const y = cy + (rand() - 0.5) * s * 0.5;
+          const r = s * (0.6 + rand() * 0.6);
+          const pg = ctx.createRadialGradient(x, y, 0, x, y, r);
+          pg.addColorStop(0, 'rgba(255,255,255,0.55)');
+          pg.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = pg;
+          ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+      }
+      break;
+    }
+    case 'kraft': {
+      diagonal();
+      blobs(Math.max(20, area / 400_000), 200, 600, (i) => (i % 2 ? 'rgba(90,60,30,0.08)' : 'rgba(255,240,210,0.08)'));
+      ctx.lineWidth = 2;
+      for (let i = 0; i < area / 3500; i++) {
+        ctx.strokeStyle = i % 3 ? 'rgba(80,52,25,0.16)' : 'rgba(255,240,215,0.2)';
+        const x = rand() * W;
+        const y = rand() * H;
+        const a = rand() * Math.PI;
+        const l = 6 + rand() * 18;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'graph': {
+      diagonal();
+      ctx.strokeStyle = 'rgba(70,130,200,0.22)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 60) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+      for (let y = 0; y < H; y += 60) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(70,130,200,0.34)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += 300) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+      for (let y = 0; y < H; y += 300) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+      ctx.stroke();
+      break;
+    }
+    case 'album': {
+      diagonal();
+      for (let i = 0; i < area / 2500; i++) {
+        ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.2)';
+        ctx.fillRect(rand() * W, rand() * H, 2, 2);
+      }
+      break;
+    }
+    case 'sprinkles': {
+      diagonal();
+      const colors = ['#ff5c9d', '#ffd93d', '#4fb8ff', '#6fdc9a', '#b38cff', '#ff8f3d', '#ffffff'];
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < area / 60_000; i++) {
+        const x = rand() * W;
+        const y = rand() * H;
+        const a = rand() * Math.PI;
+        const l = 16 + rand() * 18;
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'stars': {
+      diagonal();
+      for (let i = 0; i < area / 50_000; i++) {
+        const x = rand() * W;
+        const y = rand() * H;
+        const s = 6 + rand() * 18;
+        ctx.fillStyle = `rgba(255,255,255,${0.35 + rand() * 0.5})`;
+        // four-point sparkle
+        ctx.beginPath();
+        ctx.moveTo(x, y - s);
+        ctx.quadraticCurveTo(x, y, x + s, y);
+        ctx.quadraticCurveTo(x, y, x, y + s);
+        ctx.quadraticCurveTo(x, y, x - s, y);
+        ctx.quadraticCurveTo(x, y, x, y - s);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'halftone': {
+      diagonal();
+      ctx.fillStyle = 'rgba(239,65,48,0.16)';
+      const step = 54;
+      for (let y = 0, r = 0; y < H + step; y += step, r++) {
+        for (let x = (r % 2) * (step / 2); x < W + step; x += step) {
+          const t = 0.5 + 0.5 * Math.sin(x * 0.0016 + y * 0.0011);
+          ctx.beginPath();
+          ctx.arc(x, y, 3 + 13 * t, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      break;
+    }
+    case 'lightbox': {
+      ctx.fillStyle = theme.palette.detail;
+      ctx.fillRect(0, 0, W, H);
+      const inset = 46;
+      const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+      g.addColorStop(0, c0);
+      g.addColorStop(1, c1);
+      ctx.fillStyle = g;
+      roundRect(ctx, inset, inset, W - inset * 2, H - inset * 2, 30);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(80,110,140,0.06)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = inset + 240; x < W - inset; x += 240) { ctx.moveTo(x, inset); ctx.lineTo(x, H - inset); }
+      for (let y = inset + 240; y < H - inset; y += 240) { ctx.moveTo(inset, y); ctx.lineTo(W - inset, y); }
+      ctx.stroke();
+      break;
+    }
+    case 'wall': {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, shade(c0, 0.04));
+      g.addColorStop(1, c1);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      blobs(Math.max(16, area / 600_000), 300, 900, (i) => (i % 2 ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'));
+      break;
+    }
+    case 'cork': {
+      ctx.fillStyle = c0;
+      ctx.fillRect(0, 0, W, H);
+      const grains = [shade(c0, -0.28), shade(c0, 0.22), shade(c1, -0.12), shade(c0, -0.45)];
+      for (let i = 0; i < area / 1800; i++) {
+        ctx.fillStyle = grains[i % grains.length];
+        ctx.globalAlpha = 0.35 + rand() * 0.45;
+        ctx.beginPath();
+        ctx.ellipse(rand() * W, rand() * H, 3 + rand() * 8, 2 + rand() * 6, rand() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // the wooden frame around the board
+      ctx.strokeStyle = theme.palette.detail;
+      ctx.lineWidth = 60;
+      ctx.strokeRect(30, 30, W - 60, H - 60);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(58, 58, W - 116, H - 116);
+      break;
+    }
+    case 'cyan': {
+      // paper, then a brushed coat of emulsion with ragged edges
+      ctx.fillStyle = theme.palette.card[0];
+      ctx.fillRect(0, 0, W, H);
+      const m = Math.min(W, H) * 0.035;
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, c0);
+      g.addColorStop(1, c1);
+      ctx.fillStyle = g;
+      ctx.fillRect(m, m, W - m * 2, H - m * 2);
+      // brush strokes run along each edge with ragged ends, like a hand-coated sheet
+      ctx.fillStyle = c0;
+      const strokes = (W + H) / 40;
+      for (let k = 0; k < strokes; k++) {
+        const side = k % 4;
+        const along = side < 2 ? W : H;
+        const t = m + rand() * (along - 2 * m);
+        const len = Math.min(120 + rand() * 420, 2 * Math.min(t - m, along - m - t) + 60);
+        const depth = 6 + rand() * 34;
+        const off = (rand() - 0.35) * 26;
+        ctx.globalAlpha = 0.35 + rand() * 0.55;
+        ctx.beginPath();
+        if (side === 0) ctx.ellipse(t, m - off, len / 2, depth / 2, 0, 0, Math.PI * 2);
+        if (side === 1) ctx.ellipse(t, H - m + off, len / 2, depth / 2, 0, 0, Math.PI * 2);
+        if (side === 2) ctx.ellipse(m - off, t, depth / 2, len / 2, 0, 0, Math.PI * 2);
+        if (side === 3) ctx.ellipse(W - m + off, t, depth / 2, len / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      blobs(Math.max(14, area / 700_000), 200, 700, (i) => (i % 2 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)'));
+      break;
+    }
+    case 'xerox': {
+      ctx.fillStyle = c0;
+      ctx.fillRect(0, 0, W, H);
+      // toner speckle and the odd streak from the drum
+      ctx.fillStyle = 'rgba(17,17,17,0.35)';
+      for (let i = 0; i < area / 5000; i++) {
+        const s = 1 + rand() * 3;
+        ctx.fillRect(rand() * W, rand() * H, s, s);
+      }
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = `rgba(17,17,17,${0.015 + rand() * 0.025})`;
+        ctx.fillRect(rand() * W, 0, 10 + rand() * 60, H);
+      }
+      break;
+    }
+    case 'night': {
+      diagonal();
+      const glow = [theme.palette.accent[0], theme.palette.detail, '#ffb347'];
+      for (let i = 0; i < Math.max(14, area / 1_200_000); i++) {
+        const x = rand() * W;
+        const y = rand() * H;
+        const r = 60 + rand() * 200;
+        const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r);
+        ctx.globalAlpha = 0.08 + rand() * 0.1;
+        g.addColorStop(0, glow[i % glow.length]);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      ctx.globalAlpha = 1;
+      break;
+    }
+    case 'airmail': {
+      ctx.fillStyle = c0;
+      ctx.fillRect(0, 0, W, H);
+      // the red-and-blue chevron border of an airmail envelope
+      const band = 64;
+      const step = 120;
+      const colors = theme.palette.accent;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, W, H);
+      ctx.rect(band, band, W - band * 2, H - band * 2);
+      ctx.clip('evenodd');
+      for (let k = -H; k < W + H; k += step) {
+        // red, gap, blue, gap
+        const band4 = Math.round((k + H) / step) % 4;
+        if (band4 === 1 || band4 === 3) continue;
+        ctx.fillStyle = band4 === 0 ? colors[0] : (colors[1] ?? colors[0]);
+        ctx.beginPath();
+        ctx.moveTo(k, 0);
+        ctx.lineTo(k + step / 2, 0);
+        ctx.lineTo(k + step / 2 + H, H);
+        ctx.lineTo(k + H, H);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function isDarkish(hex: string): boolean {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return false;
+  const v = parseInt(m[1], 16);
+  return ((v >> 16) & 255) + ((v >> 8) & 255) + (v & 255) < 3 * 110;
+}
+
+/** Whole-sheet finishing passes. */
+export function paintGrain(ctx: Ctx, theme: Theme, W: number, H: number) {
+  const rand = mulberry32(seedOf(theme.id) ^ 0x9e3779b9);
+  for (let i = 0; i < (W * H) / 6000; i++) {
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+    ctx.fillRect(rand() * W, rand() * H, 3, 3);
+  }
+}
+
+export function paintVignette(ctx: Ctx, W: number, H: number) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}

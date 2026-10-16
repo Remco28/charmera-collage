@@ -5,16 +5,12 @@ import type { PhotoSlot } from '../lib/types';
 /** Tray order is sheet order. Drag rows with a mouse, or use the arrows (touch, keyboard). */
 export function PhotoTray({
   slots,
-  framed,
-  themeName,
   onCaption,
   onMove,
   onReorder,
   onRemove,
 }: {
   slots: PhotoSlot[];
-  framed: boolean;
-  themeName: string;
   onCaption: (id: string, caption: string) => void;
   onMove: (id: string, delta: -1 | 1) => void;
   onReorder: (fromId: string, toId: string) => void;
@@ -26,11 +22,6 @@ export function PhotoTray({
 
   return (
     <>
-      {!framed && (
-        <p className="mb-2 rounded-xl bg-sky px-3 py-2 text-sm text-ink-soft">
-          {themeName} is frameless, so captions are hidden — your text is kept for when you switch back.
-        </p>
-      )}
       <ul className="max-h-[28rem] space-y-2 overflow-auto p-0.5">
         {slots.map((s, i) => (
           <li

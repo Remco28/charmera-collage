@@ -1,78 +1,124 @@
-import { THEME_CATEGORIES } from '../lib/themes';
-import type { ThemeCategoryFilter } from '../lib/themes';
-import type { Theme, ThemeId } from '../lib/types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { cardBox } from '../lib/card';
+import { placeRecipe, recipesFor } from '../lib/recipes';
+import { drawSheet } from '../lib/render';
+import { sampleBitmaps } from '../lib/samples';
+import { CONCEPTS, THEMES } from '../lib/themes';
+import type { PhotoSlot, Theme } from '../lib/types';
 
-/** Swatch tiles: the theme's backdrop with a mini card in its frame colors. */
+const THUMB_PX = 420;
+const SAMPLE_CAPTIONS = ['beach day', '', '', ''];
+
+/** A real render of the theme with four photos, so the tile shows what you'll get. */
+function Thumb({ theme, photos }: { theme: Theme; photos: PhotoSlot[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas || photos.length === 0) return;
+    const raf = requestAnimationFrame(() => {
+      const recipe = recipesFor(photos.length)[0];
+      const { w, h } = cardBox(theme, true);
+      const sheet = placeRecipe(recipe, photos.length, theme.gap, theme.pad, w, h, 'centered', 0, 1, theme.rowGap);
+      drawSheet(canvas, photos, theme, sheet, THUMB_PX / sheet.W);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [theme, photos]);
+  return <canvas ref={ref} className="block aspect-[5/4] w-full object-cover" aria-hidden="true" />;
+}
+
 export function ThemePicker({
-  themes,
   themeId,
-  catFilter,
-  onFilter,
   onPick,
+  slots,
+  fontsReady,
 }: {
-  themes: Theme[];
-  themeId: ThemeId;
-  catFilter: ThemeCategoryFilter;
-  onFilter: (c: ThemeCategoryFilter) => void;
-  onPick: (id: ThemeId) => void;
+  themeId: string;
+  onPick: (id: string) => void;
+  slots: PhotoSlot[];
+  fontsReady: boolean;
 }) {
-  const shown = catFilter === 'All' ? themes : themes.filter((t) => t.category === catFilter);
+  const [samples, setSamples] = useState<ImageBitmap[]>([]);
+  useEffect(() => {
+    void sampleBitmaps().then(setSamples);
+  }, []);
+
+  // Thumbnails use your first four photos once there are some; captions don't affect them.
+  const key = slots.slice(0, 4).map((s) => s.id).join();
+  const photos = useMemo<PhotoSlot[]>(() => {
+    if (!fontsReady) return [];
+    const src = slots.length > 0 ? slots.slice(0, 4).map((s) => s.bitmap) : samples;
+    if (src.length === 0) return [];
+    const now = new Date();
+    return Array.from({ length: 4 }, (_, i) => ({
+      id: `thumb-${i}`,
+      file: null as unknown as File,
+      url: '',
+      hash: '',
+      bitmap: src[i % src.length],
+      caption: SAMPLE_CAPTIONS[i],
+      taken: slots[i % Math.max(1, slots.length)]?.taken ?? now,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, samples, fontsReady]);
+
+  const current = THEMES[themeId];
+
   return (
-    <>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Theme category">
-        {THEME_CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => onFilter(c)}
-            aria-pressed={catFilter === c}
-            className={`focus-ring rounded-full border-2 px-3 py-0.5 font-display text-sm font-bold transition-colors ${
-              catFilter === c ? 'border-ink bg-ink text-white' : 'border-ink/15 bg-white text-ink-soft hover:border-ink/40'
+    <div className="grid max-h-[34rem] grid-cols-2 gap-3 overflow-auto p-0.5 sm:grid-cols-3 lg:grid-cols-2">
+      {CONCEPTS.map((c) => {
+        const on = current?.concept === c.id;
+        const shown = on ? current : THEMES[`${c.id}-${c.colorways[0].key}`];
+        return (
+          <div
+            key={c.id}
+            className={`overflow-hidden rounded-2xl border-2 bg-white transition ${
+              on ? 'border-ink shadow-[0_3px_0_var(--color-ink)]' : 'border-ink/10 hover:border-ink/40'
             }`}
           >
-            {c}
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 grid max-h-[22rem] grid-cols-2 gap-2.5 overflow-auto p-0.5 sm:grid-cols-3 lg:grid-cols-2">
-        {shown.map((t) => {
-          const on = t.id === themeId;
-          return (
             <button
-              key={t.id}
-              onClick={() => onPick(t.id)}
+              onClick={() => onPick(shown.id)}
               aria-pressed={on}
-              title={t.tagline}
-              className={`focus-ring group relative overflow-hidden rounded-2xl border-2 bg-white text-left transition ${
-                on ? 'border-ink shadow-[0_3px_0_var(--color-ink)]' : 'border-ink/10 hover:-translate-y-0.5 hover:border-ink/40'
-              }`}
+              aria-label={`${c.name}, ${shown.name}`}
+              title={c.tagline}
+              className="focus-ring relative block w-full text-left"
             >
-              <span className="relative grid h-16 place-items-center" style={{ background: t.swatch }}>
-                <span
-                  className="block h-8 w-11"
-                  style={{
-                    background: t.framed ? t.cellBg : 'rgba(255,255,255,0.85)',
-                    border: t.framed && t.borderColor ? `2px solid ${t.borderColor}` : undefined,
-                    borderRadius: Math.min(t.radius / 4, 6),
-                    boxShadow: t.shadow || !t.framed ? '0 3px 6px rgba(0,0,0,0.25)' : undefined,
-                    transform: t.jitterDeg ? 'rotate(-4deg)' : undefined,
-                  }}
-                />
-                {on && (
-                  <span className="absolute top-1.5 right-1.5 grid h-5 w-5 place-items-center rounded-full border-2 border-ink bg-accent text-[11px] font-black text-accent-ink">
-                    ✓
-                  </span>
-                )}
+              <span className="block bg-paper-dim">
+                <Thumb theme={shown} photos={photos} />
               </span>
-              <span className="block px-2.5 pt-1.5 pb-2">
-                <span className="block truncate font-display text-sm font-extrabold">{t.name}</span>
-                <span className="block truncate text-xs text-muted">
-                  {t.framed ? t.category : 'Frameless'}
+              {on && (
+                <span className="absolute top-1.5 right-1.5 grid h-6 w-6 place-items-center rounded-full border-2 border-ink bg-accent text-xs font-black text-accent-ink">
+                  ✓
                 </span>
+              )}
+              <span className="block px-2.5 pt-1.5">
+                <span className="block truncate font-display text-sm font-extrabold">{c.name}</span>
+                <span className="block truncate text-xs text-muted">{on ? shown.name : c.tagline}</span>
               </span>
             </button>
-          );
-        })}
-      </div>
-    </>
+            <div className="flex gap-1.5 px-2.5 pt-1.5 pb-2.5" role="group" aria-label={`${c.name} colorways`}>
+              {c.colorways.map((cw) => {
+                const t = THEMES[`${c.id}-${cw.key}`];
+                const sel = t.id === themeId;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onPick(t.id)}
+                    aria-pressed={sel}
+                    aria-label={`${c.name}: ${t.name}`}
+                    title={t.name}
+                    className={`focus-ring h-6 w-6 rounded-full border-2 transition-transform ${
+                      sel ? 'scale-110 border-ink' : 'border-ink/20 hover:scale-110'
+                    }`}
+                    style={{
+                      background: `linear-gradient(135deg, ${t.palette.surface[0]} 0 55%, ${t.palette.card[0] === 'transparent' ? t.palette.detail : t.palette.card[0]} 55%)`,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

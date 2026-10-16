@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Theme gallery</title>
+    <style>
+      body { margin: 0; padding: 24px; background: #e9e6ef; font: 14px system-ui, sans-serif; color: #1d1a24; }
+      #grid { display: grid; grid-template-columns: repeat(var(--cols, 4), 1fr); gap: 22px; }
+      figure { margin: 0; }
+      canvas { width: 100%; height: auto; display: block; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+      figcaption { margin-top: 6px; font-weight: 700; }
+      figcaption span { font-weight: 400; color: #6b6578; }
+    </style>
+  </head>
+  <body>
+    <!-- Dev tool: every theme drawn with the same photos. Run `npm run dev`, open /scripts/theme-gallery.html,
+         pick 6+ photos. ?only=id,id limits themes; ?n=4 changes photo count; ?cols=3 changes columns. -->
+    <input type="file" accept="image/*" multiple />
+    <div id="grid"></div>
+    <script type="module" src="./theme-gallery.ts"></script>
+  </body>
+</html>
