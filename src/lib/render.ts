@@ -267,28 +267,47 @@ function drawVignette(ctx: CanvasRenderingContext2D, W: number, H: number) {
 }
 
 /**
+ * iOS/iPadOS Safari refuses canvases over 16.7 MP (4096²): drawing silently
+ * fails and toBlob returns null. Sheets of ~9+ native cards are bigger.
+ */
+export const MAX_SAFE_PIXELS = 4096 * 4096;
+
+/** Largest scale (≤ 1) that keeps a W×H sheet under the iOS canvas limit. */
+export function safeScale(W: number, H: number): number {
+  const area = W * H;
+  if (area <= MAX_SAFE_PIXELS) return 1;
+  // Small margin so rounding the canvas size up can never cross the limit.
+  return Math.sqrt(MAX_SAFE_PIXELS / area) * 0.995;
+}
+
+/**
  * Draw the full sheet of IDENTICAL cards positioned by a row recipe.
  * - native pixels, no resizing, no cropping ever
  * - exactly n cards, no placeholders — rows simply end
  * - caption strip reserved when ANY photo has a caption (uniform look),
  *   except on frameless themes (captions hide, text is kept)
  * - frameless themes: photo floats on the background with a soft shadow
+ * - `scale` < 1 draws the same sheet smaller (preview, phone-size export);
+ *   layout stays in native sheet units, so every scale matches.
  */
 export function drawSheet(
   canvas: HTMLCanvasElement,
   slots: PhotoSlot[],
   theme: Theme,
   sheet: PlacedSheet,
+  scale = 1,
 ): { width: number; height: number } {
   const hasCaptions = theme.framed && slots.some((s) => s.caption.trim().length > 0);
   const capH = hasCaptions ? theme.captionHeight : 0;
   const cellFullH = CELL_H + capH;
   const { W, H } = sheet;
 
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = Math.max(1, Math.round(W * scale));
+  canvas.height = Math.max(1, Math.round(H * scale));
   const ctx = canvas.getContext('2d');
-  if (!ctx) return { width: W, height: H };
+  if (!ctx) return { width: canvas.width, height: canvas.height };
+  // Shadows ignore the transform, so their sizes are scaled by hand.
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
   paintBackground(ctx, theme, W, H);
   drawTexture(ctx, theme, W, H);
@@ -321,8 +340,8 @@ export function drawSheet(
       const dy = y + Math.floor((CELL_H - dh) / 2);
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = theme.shadowBlur ?? 90;
-      ctx.shadowOffsetY = theme.shadowOffsetY ?? 36;
+      ctx.shadowBlur = (theme.shadowBlur ?? 90) * scale;
+      ctx.shadowOffsetY = (theme.shadowOffsetY ?? 36) * scale;
       roundRect(ctx, dx, dy, dw, dh, Math.min(theme.radius, 24));
       ctx.fillStyle = 'rgba(0,0,0,0.01)';
       ctx.fill();
@@ -341,14 +360,14 @@ export function drawSheet(
     if (theme.shadow) {
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.25)';
-      ctx.shadowBlur = theme.shadowBlur ?? 60;
-      ctx.shadowOffsetY = theme.shadowOffsetY ?? 24;
-      ctx.fillStyle = slot ? theme.cellBg : 'rgba(127,127,127,0.18)';
+      ctx.shadowBlur = (theme.shadowBlur ?? 60) * scale;
+      ctx.shadowOffsetY = (theme.shadowOffsetY ?? 24) * scale;
+      ctx.fillStyle = theme.cellBg;
       roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
       ctx.restore();
     } else {
-      ctx.fillStyle = slot ? theme.cellBg : 'rgba(127,127,127,0.18)';
+      ctx.fillStyle = theme.cellBg;
       roundRect(ctx, x, y, CELL_W, cellFullH, theme.radius);
       ctx.fill();
     }
@@ -399,8 +418,6 @@ export function drawSheet(
         ctx.textBaseline = 'middle';
         const label = slot.caption.trim().slice(0, 80);
         ctx.fillText(label, x + CELL_W / 2, cy + capH / 2, CELL_W - 60);
-      } else if (hasCaptions) {
-        // empty caption space stays clean — keeps grid uniform
       }
       ctx.restore();
     }
@@ -410,15 +427,32 @@ export function drawSheet(
   if (theme.grain) drawGrain(ctx, W, H, themeSeed(theme.id));
   if (theme.vignette) drawVignette(ctx, W, H);
 
-  return { width: W, height: H };
+  return { width: canvas.width, height: canvas.height };
 }
 
-export async function exportSheet(canvas: HTMLCanvasElement, kind: 'png' | 'jpeg' = 'png'): Promise<Blob> {
-  const type = kind === 'jpeg' ? 'image/jpeg' : 'image/png';
-  const quality = kind === 'jpeg' ? 0.92 : undefined;
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), type, quality),
-  );
-  if (!blob) throw new Error('Export failed — canvas is empty?');
-  return blob;
+/**
+ * Render the sheet on a fresh offscreen canvas and encode it. Returns null
+ * when the browser cannot produce the image (e.g. over the iOS size limit).
+ */
+export async function renderSheetBlob(
+  slots: PhotoSlot[],
+  theme: Theme,
+  sheet: PlacedSheet,
+  kind: 'png' | 'jpeg',
+  scale = 1,
+): Promise<{ blob: Blob; width: number; height: number } | null> {
+  const canvas = document.createElement('canvas');
+  try {
+    const size = drawSheet(canvas, slots, theme, sheet, scale);
+    const type = kind === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const quality = kind === 'jpeg' ? 0.92 : undefined;
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+    return blob && blob.size > 0 ? { blob, ...size } : null;
+  } catch {
+    return null;
+  } finally {
+    // Free the backing store now; Safari counts it against a small budget.
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }

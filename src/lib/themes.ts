@@ -1,7 +1,7 @@
 import type { Theme, ThemeId } from './types';
 
 /**
- * 21 refined themes. All procedural (no assets), all system fonts
+ * 40 refined themes. All procedural (no assets), all system fonts
  * (canvas export never misses a webfont). Design notes:
  * - Charmera shots exactly fill their cell, so differentiation lives in
  *   the MAT (frame around each photo) and the GUTTERS.
