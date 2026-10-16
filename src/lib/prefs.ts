@@ -2,7 +2,8 @@ import { BODIES } from './bodies';
 import type { BodyId } from './bodies';
 import type { BgMatch } from './harmonize';
 import type { RowAlign } from './recipes';
-import { DEFAULT_THEME_ID, LEGACY_THEME_IDS, THEMES } from './themes';
+import { CUSTOM_ID, DEFAULT_MIX, DEFAULT_THEME_ID, LEGACY_THEME_IDS, MIX_BORDERS, THEMES } from './themes';
+import type { CustomMix } from './themes';
 
 /** Look-and-export settings remembered in this browser between visits. Photos are never stored. */
 export interface Prefs {
@@ -12,6 +13,8 @@ export interface Prefs {
   format: 'png' | 'jpeg';
   size: 'full' | 'phone';
   body: BodyId;
+  /** Colors and border for the Mix Your Own theme. */
+  custom: CustomMix;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -21,6 +24,7 @@ export const DEFAULT_PREFS: Prefs = {
   format: 'png',
   size: 'full',
   body: 'sunny',
+  custom: DEFAULT_MIX,
 };
 
 const KEY = 'charmera-collage:prefs:v1';
@@ -46,13 +50,29 @@ export function parsePrefs(raw: string | null): Prefs {
     format: pick(data.format, ['png', 'jpeg'] as const, d.format),
     size: pick(data.size, ['full', 'phone'] as const, d.size),
     body: pick(data.body, BODIES.map((b) => b.id), d.body),
+    custom: mixFrom(data.custom),
+  };
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const hexOr = (value: unknown, fallback: string) => (typeof value === 'string' && HEX.test(value) ? value.toLowerCase() : fallback);
+
+function mixFrom(value: unknown): CustomMix {
+  const m = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const d = DEFAULT_MIX;
+  return {
+    surface: hexOr(m.surface, d.surface),
+    card: hexOr(m.card, d.card),
+    ink: hexOr(m.ink, d.ink),
+    border: pick(m.border, MIX_BORDERS, d.border),
+    scatter: typeof m.scatter === 'boolean' ? m.scatter : d.scatter,
   };
 }
 
 /** Current theme ids pass; ids from before the concept redesign map to their nearest look. */
 function themeIdFrom(value: unknown): string {
   if (typeof value !== 'string') return DEFAULT_THEME_ID;
-  if (THEMES[value]) return value;
+  if (THEMES[value] || value === CUSTOM_ID) return value;
   return LEGACY_THEME_IDS[value] ?? DEFAULT_THEME_ID;
 }
 

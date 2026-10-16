@@ -10,10 +10,12 @@ A fan-made companion; not affiliated with Kodak. Photos never leave the browser,
 - Every photo is the same size card at native Charmera resolution (1440×1080). No cropping, no resizing, no empty cells.
 - Row recipes give 1–3 arrangements per photo count ("Shuffle layout"), centered or contact-sheet aligned.
 - 14 theme concepts in 31 colorways. Each concept is a real photo object with its own card construction: contact sheet, one-hour prints (with a date stamp from the photo's EXIF), instant, clothesline, scrapbook, stickers, slide lightbox, gallery wall, corkboard, sun print, photocopy zine, night flash, stamp album, frameless. All drawn procedurally; sheet fonts are self-hosted.
+- **Mix Your Own**: one plain-print theme where you pick the exact background, border and caption colors (chips pulled from your photos, neutrals, or any color), the border width, and straight or tossed prints.
+- Reorder by dragging a photo on the sheet preview or a row in the photo list, with mouse or touch (press and hold on a phone). Arrow keys move a focused row.
 - Photos are drawn at native size inside each concept's border; the card grows, the photo doesn't shrink.
 - Captions, written per photo, appear in the concept's own hand (marker, ballpoint, typewriter, gallery label...). Plain-surface themes can tint their background from the photos.
-- Export as PNG or JPG. Sheets over 16.7 MP (about 9+ photos) also offer **Phone size**, because iPhone and iPad Safari can't create larger images. If a full-size export fails there, it falls back to phone size on its own.
-- Look settings (theme, frame, background, file type, size, camera body color) are remembered in this browser. Photos are not.
+- Export as PNG or JPG; each choice shows an estimated file size (from encoding the preview, within about 15%). Sheets over 16.7 MP (about 9+ photos) also offer **Phone size**, because iPhone and iPad Safari can't create larger images. If a full-size export fails there, it falls back to phone size on its own.
+- Look settings (theme, your Mix Your Own colors, background, file type, size, camera body color) are remembered in this browser. Photos are not.
 
 ## Code map
 
@@ -26,6 +28,8 @@ A fan-made companion; not affiliated with Kodak. Photos never leave the browser,
 | `src/lib/themes.ts` | Concepts and colorways; legacy theme-id map |
 | `src/lib/paint/surfaces.ts` | What the cards sit on (wood, cork, lightbox, wall...) |
 | `src/lib/paint/cards.ts` | One painter per card kind (film, instant, stamp...) |
+| `src/lib/press.ts` | Press-and-drag for mouse and touch (reordering) |
+| `src/lib/estimate.ts` | Export file-size estimate |
 | `src/lib/card.ts` | Card size from a theme's border and caption area |
 | `src/lib/fonts.ts` | Sheet fonts, loaded before drawing |
 | `src/lib/exif.ts` | Photo date from EXIF |
@@ -38,7 +42,7 @@ A fan-made companion; not affiliated with Kodak. Photos never leave the browser,
 ```bash
 npm ci
 npm run dev       # http://localhost:5173
-npm test          # vitest: recipes, harmonizer, frame, prefs, size limit
+npm test          # vitest: recipes, harmonizer, prefs, size limit, custom theme, size estimate
 npm run lint      # oxlint
 npm run build     # type-check + production build into dist/
 ```
@@ -51,6 +55,8 @@ node scripts/shot.mjs http://localhost:4789/ /tmp/shot.png 1400 900 ~/Pictures/c
 ```
 
 `scripts/theme-gallery.html` draws every theme with the same photos (dev server only): open `/scripts/theme-gallery.html`, pick photos. `?only=gallery,stamps` filters by id prefix, `?cols=3`, `?n=4`. The shot script can drive it: `node scripts/shot.mjs "http://localhost:5173/scripts/theme-gallery.html?only=instant" out.png 1700 900 ~/Pictures/charmera 6`. Keep `only=` to a few concepts per shot; all 31 at once is too heavy for headless Chrome.
+
+`scripts/size-probe.html` measures encoded bytes per pixel at several scales; it is where the falloff constants in `src/lib/estimate.ts` came from.
 
 ## Deploy
 

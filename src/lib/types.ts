@@ -5,7 +5,7 @@
  */
 export type ConceptId =
   | 'contact' | 'prints' | 'instant' | 'clothesline' | 'scrapbook' | 'stickers' | 'lightbox'
-  | 'gallery' | 'corkboard' | 'cyanotype' | 'zine' | 'flash' | 'stamps' | 'float';
+  | 'gallery' | 'corkboard' | 'cyanotype' | 'zine' | 'flash' | 'stamps' | 'float' | 'custom';
 
 /** How a single card is drawn around its photo. */
 export type CardKind =
@@ -16,7 +16,7 @@ export type CardKind =
 export type SurfaceKind =
   | 'paper' | 'safelight' | 'wood' | 'formica' | 'sky' | 'kraft' | 'graph' | 'album'
   | 'sprinkles' | 'stars' | 'halftone' | 'lightbox' | 'wall' | 'cork' | 'cyan' | 'xerox'
-  | 'night' | 'airmail';
+  | 'night' | 'airmail' | 'solid';
 
 export interface Palette {
   /** Surface base colors (1–2 stops). Replaced by the photo harmonizer when the theme is tintable. */

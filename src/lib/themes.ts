@@ -30,6 +30,51 @@ const DEFAULTS = {
   tintable: false,
 } as const;
 
+/** The one theme you set yourself: exact colors, border width, straight or tossed. */
+export interface CustomMix {
+  surface: string;
+  card: string;
+  ink: string;
+  border: MixBorder;
+  scatter: boolean;
+}
+export type MixBorder = 'none' | 'thin' | 'classic' | 'wide';
+export const MIX_BORDERS: readonly MixBorder[] = ['none', 'thin', 'classic', 'wide'];
+const MIX_BORDER_PX: Record<MixBorder, number> = { none: 0, thin: 36, classic: 80, wide: 150 };
+
+export const CUSTOM_ID = 'custom-mix';
+export const DEFAULT_MIX: CustomMix = { surface: '#f6f1e7', card: '#ffffff', ink: '#2a2730', border: 'classic', scatter: false };
+
+/** A plain print on a flat color: nothing decorative, so the picked colors are exactly what you see. */
+export function customTheme(mix: CustomMix): Theme {
+  const none = mix.border === 'none';
+  return {
+    ...DEFAULTS,
+    id: CUSTOM_ID,
+    concept: 'custom',
+    conceptName: 'Mix Your Own',
+    name: 'Your colors',
+    tagline: 'Pick exact colors for this set of photos',
+    card: none ? 'bare' : 'print',
+    surface: 'solid',
+    palette: { surface: [mix.surface], card: [mix.card], ink: mix.ink, accent: [mix.ink], detail: mix.card },
+    border: border(MIX_BORDER_PX[mix.border]),
+    captionArea: 150,
+    captionFont: `700 100px ${HAND}`,
+    gap: 120,
+    rowGap: 120,
+    pad: 220,
+    radius: none ? 12 : 4,
+    jitterDeg: mix.scatter ? 2.4 : 0,
+    shadow: none ? 'lifted' : 'soft',
+  };
+}
+
+function customConcept(): Concept {
+  const { id: _id, name, palette, surface, concept: _c, conceptName, tagline, ...base } = customTheme(DEFAULT_MIX);
+  return { id: 'custom', name: conceptName, tagline, base, colorways: [{ key: 'mix', name, palette, surface }] };
+}
+
 export const CONCEPTS: Concept[] = [
   {
     id: 'contact',
@@ -433,6 +478,7 @@ export const CONCEPTS: Concept[] = [
       },
     ],
   },
+  customConcept(),
 ];
 
 export const THEME_LIST: Theme[] = CONCEPTS.flatMap((c) =>
@@ -468,4 +514,10 @@ export const LEGACY_THEME_IDS: Record<string, string> = {
 
 export function conceptOf(id: ConceptId): Concept {
   return CONCEPTS.find((c) => c.id === id) ?? CONCEPTS[0];
+}
+
+/** The theme for a saved id; the custom one is rebuilt from the saved mix. */
+export function themeFor(id: string, mix: CustomMix): Theme {
+  if (id === CUSTOM_ID) return customTheme(mix);
+  return THEMES[id] ?? THEMES[DEFAULT_THEME_ID];
 }

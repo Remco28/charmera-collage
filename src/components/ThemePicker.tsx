@@ -3,7 +3,8 @@ import { cardBox } from '../lib/card';
 import { placeRecipe, recipesFor } from '../lib/recipes';
 import { drawSheet } from '../lib/render';
 import { sampleBitmaps } from '../lib/samples';
-import { CONCEPTS, THEMES } from '../lib/themes';
+import { CONCEPTS, THEMES, customTheme } from '../lib/themes';
+import type { CustomMix } from '../lib/themes';
 import type { PhotoSlot, Theme } from '../lib/types';
 
 const THUMB_PX = 420;
@@ -31,11 +32,13 @@ export function ThemePicker({
   onPick,
   slots,
   fontsReady,
+  mix,
 }: {
   themeId: string;
   onPick: (id: string) => void;
   slots: PhotoSlot[];
   fontsReady: boolean;
+  mix: CustomMix;
 }) {
   const [samples, setSamples] = useState<ImageBitmap[]>([]);
   useEffect(() => {
@@ -62,12 +65,14 @@ export function ThemePicker({
   }, [key, samples, fontsReady]);
 
   const current = THEMES[themeId];
+  const mixTheme = useMemo(() => customTheme(mix), [mix]);
 
   return (
     <div className="grid max-h-[34rem] grid-cols-2 gap-3 overflow-auto p-0.5 sm:grid-cols-3 lg:grid-cols-2">
       {CONCEPTS.map((c) => {
         const on = current?.concept === c.id;
-        const shown = on ? current : THEMES[`${c.id}-${c.colorways[0].key}`];
+        const custom = c.id === 'custom';
+        const shown = custom ? mixTheme : on ? current : THEMES[`${c.id}-${c.colorways[0].key}`];
         return (
           <div
             key={c.id}
@@ -95,6 +100,19 @@ export function ThemePicker({
                 <span className="block truncate text-xs text-muted">{on ? shown.name : c.tagline}</span>
               </span>
             </button>
+            {custom ? (
+              <div className="flex items-center gap-1.5 px-2.5 pt-1.5 pb-2.5">
+                {[mix.surface, mix.card, mix.ink].map((hex, k) => (
+                  <span
+                    key={k}
+                    className={`h-6 w-6 rounded-full border-2 ${k === 1 && mix.border === 'none' ? 'hidden' : ''} border-ink/20`}
+                    style={{ background: hex }}
+                    aria-hidden="true"
+                  />
+                ))}
+                <span className="truncate pl-0.5 font-hand text-base leading-none text-ink-soft">{on ? 'set below' : 'yours'}</span>
+              </div>
+            ) : (
             <div className="flex gap-1.5 px-2.5 pt-1.5 pb-2.5" role="group" aria-label={`${c.name} colorways`}>
               {c.colorways.map((cw) => {
                 const t = THEMES[`${c.id}-${cw.key}`];
@@ -116,6 +134,7 @@ export function ThemePicker({
                 );
               })}
             </div>
+            )}
           </div>
         );
       })}

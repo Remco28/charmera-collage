@@ -34,6 +34,12 @@ export function paintSurface(ctx: Ctx, theme: Theme, W: number, H: number) {
 
   ctx.save();
   switch (theme.surface) {
+    case 'solid': {
+      // Exactly the color that was picked, no texture.
+      ctx.fillStyle = c0;
+      ctx.fillRect(0, 0, W, H);
+      break;
+    }
     case 'paper': {
       diagonal();
       // faint paper fiber

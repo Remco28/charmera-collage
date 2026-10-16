@@ -178,3 +178,42 @@ export function harmonizeBackground(
   }
   return stops;
 }
+
+/**
+ * A handful of distinct colors actually in the photos, for picking exact
+ * sheet colors. Pixels are grouped by hue (12 bins) and lightness (3 bands);
+ * the heaviest groups win, averaged within the group so each is a real tone.
+ * Near-grays form their own groups by lightness.
+ */
+export function photoSwatches(pixels: WeightedPixel[], count = 6): string[] {
+  const groups = new Map<string, { r: number; g: number; b: number; w: number }>();
+  for (const p of pixels) {
+    const { h, s, l } = rgbToHsl(p);
+    const band = Math.min(2, Math.floor(l * 3));
+    const key = s < 0.14 ? `n${band}` : `${Math.floor(h / 30) % 12}:${band}`;
+    const g = groups.get(key) ?? { r: 0, g: 0, b: 0, w: 0 };
+    // Saturated pixels count a little more, so a red jacket beats a gray sky.
+    const w = p.w * (0.6 + s);
+    g.r += p.r * w;
+    g.g += p.g * w;
+    g.b += p.b * w;
+    g.w += w;
+    groups.set(key, g);
+  }
+  const ranked = [...groups.values()]
+    .sort((a, b) => b.w - a.w)
+    .map((g) => ({ r: g.r / g.w, g: g.g / g.w, b: g.b / g.w }));
+  const out: Rgb[] = [];
+  for (const c of ranked) {
+    if (out.length >= count) break;
+    // Skip near-twins so the row shows different colors, not six beiges.
+    if (out.some((o) => Math.abs(o.r - c.r) + Math.abs(o.g - c.g) + Math.abs(o.b - c.b) < 60)) continue;
+    out.push(c);
+  }
+  const hex = (c: Rgb) =>
+    '#' + [c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  return out
+    .map((c) => ({ c, hsl: rgbToHsl(c) }))
+    .sort((a, b) => a.hsl.l - b.hsl.l)
+    .map(({ c }) => hex(c));
+}

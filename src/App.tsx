@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { CameraIcon } from './components/CameraIcon';
 import { Dropzone } from './components/Dropzone';
+import { MixEditor } from './components/MixEditor';
 import { PhotoTray } from './components/PhotoTray';
 import { ThemePicker } from './components/ThemePicker';
 import { Collapsible, Segmented } from './components/ui';
@@ -9,13 +10,15 @@ import { BODIES, RAINBOW, bodyById } from './lib/bodies';
 import { anyCaptions, cardBox } from './lib/card';
 import { exifDate } from './lib/exif';
 import { loadSheetFonts } from './lib/fonts';
-import { bgIsDark, harmonizeBackground, samplePhotoPixels } from './lib/harmonize';
+import { estimateBytes, formatBytes } from './lib/estimate';
+import { bgIsDark, harmonizeBackground, photoSwatches, samplePhotoPixels } from './lib/harmonize';
 import type { WeightedPixel } from './lib/harmonize';
 import { loadPrefs, savePrefs } from './lib/prefs';
 import type { Prefs } from './lib/prefs';
 import { placeRecipe, recipesFor } from './lib/recipes';
 import { MAX_SAFE_PIXELS, drawSheet, renderSheetBlob, safeScale } from './lib/render';
-import { THEMES, THEME_LIST } from './lib/themes';
+import { watchPress } from './lib/press';
+import { CUSTOM_ID, THEME_LIST, themeFor } from './lib/themes';
 import { tiltFor } from './lib/tilt';
 import type { PhotoSlot } from './lib/types';
 import { hashBytes } from './lib/dedupe';
@@ -70,6 +73,10 @@ export default function App() {
   const [openTheme, setOpenTheme] = useState(true);
   const [openPhotos, setOpenPhotos] = useState(true);
   const [fontsReady, setFontsReady] = useState(false);
+  /** Encoded size of the current preview, the basis for the file-size estimate. */
+  const [previewBytes, setPreviewBytes] = useState<{ png: number; jpeg: number; scale: number } | null>(null);
+  /** A photo being dragged on the sheet preview: which card, where the pointer is, which card it's over. */
+  const [sheetDrag, setSheetDrag] = useState<{ from: number; x: number; y: number; over: number | null } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const busyRef = useRef(false);
 
@@ -87,7 +94,7 @@ export default function App() {
     root.setProperty('--accent-ink', body.accentInk);
   }, [body]);
 
-  const theme = THEMES[prefs.themeId] ?? THEME_LIST[0];
+  const theme = themeFor(prefs.themeId, prefs.custom);
   const variants = recipesFor(slots.length);
   const recipeIdx = recipePick.count === slots.length ? recipePick.idx : 0;
 
@@ -198,15 +205,28 @@ export default function App() {
   }, []);
 
   // Live preview, drawn small and at most once per frame so typing stays smooth.
+  // Once it settles, encode it both ways to estimate the export's file size.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !sheet || slots.length === 0 || !fontsReady) return;
-    const raf = requestAnimationFrame(() => {
-      const scale = Math.min(1, PREVIEW_MAX_SIDE / Math.max(sheet.W, sheet.H));
-      drawSheet(canvas, slots, effTheme, sheet, scale);
-    });
-    return () => cancelAnimationFrame(raf);
+    const scale = Math.min(1, PREVIEW_MAX_SIDE / Math.max(sheet.W, sheet.H));
+    let stale = false;
+    const raf = requestAnimationFrame(() => drawSheet(canvas, slots, effTheme, sheet, scale));
+    const timer = setTimeout(async () => {
+      const size = (type: string, q?: number) =>
+        new Promise<number>((resolve) => canvas.toBlob((b) => resolve(b?.size ?? 0), type, q));
+      const png = await size('image/png');
+      const jpeg = await size('image/jpeg', 0.92);
+      if (!stale && png > 0 && jpeg > 0) setPreviewBytes({ png, jpeg, scale });
+    }, 400);
+    return () => {
+      stale = true;
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
   }, [slots, effTheme, sheet, fontsReady]);
+
+  const photoColors = useMemo(() => photoSwatches(slots.flatMap((s) => samplesFor(s.bitmap))), [slots]);
 
   const removeSlot = (id: string) => {
     const found = slots.find((s) => s.id === id);
@@ -262,12 +282,54 @@ export default function App() {
   };
 
   const surpriseTheme = () => {
-    const pool = THEME_LIST.filter((t) => t.id !== prefs.themeId);
+    const pool = THEME_LIST.filter((t) => t.id !== prefs.themeId && t.id !== CUSTOM_ID);
     set('themeId', pool[Math.floor(Math.random() * pool.length)].id);
   };
 
   const tooBigForPhone = !!sheet && sheet.W * sheet.H > MAX_SAFE_PIXELS;
   const phoneScale = sheet ? safeScale(sheet.W, sheet.H) : 1;
+  const exportScale = prefs.size === 'phone' && tooBigForPhone ? phoneScale : 1;
+  const sizeLabel = (kind: 'png' | 'jpeg') =>
+    previewBytes && slots.length > 0
+      ? ` · ${formatBytes(estimateBytes(previewBytes[kind], previewBytes.scale, exportScale, kind))}`
+      : '';
+
+  // --- Dragging a photo on the sheet preview ---
+  /** Which card is under a point on screen, if any. Tilt is ignored; cards are close enough to square. */
+  const cardAt = (clientX: number, clientY: number): number | null => {
+    const canvas = canvasRef.current;
+    if (!canvas || !sheet) return null;
+    const r = canvas.getBoundingClientRect();
+    const sx = ((clientX - r.left) / r.width) * sheet.W;
+    const sy = ((clientY - r.top) / r.height) * sheet.H;
+    const { w, h } = cardBox(effTheme, anyCaptions(slots));
+    const i = sheet.positions.findIndex((p) => sx >= p.x && sx < p.x + w && sy >= p.y && sy < p.y + h);
+    return i >= 0 && i < slots.length ? i : null;
+  };
+  /** A card's box in screen coordinates, for the drag highlights. */
+  const cardScreenBox = (i: number) => {
+    const canvas = canvasRef.current;
+    const p = sheet?.positions[i];
+    if (!canvas || !sheet || !p) return null;
+    const r = canvas.getBoundingClientRect();
+    const k = r.width / sheet.W;
+    const { w, h } = cardBox(effTheme, anyCaptions(slots));
+    return { left: r.left + p.x * k, top: r.top + p.y * k, width: w * k, height: h * k };
+  };
+  const pressSheet = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const from = cardAt(e.clientX, e.clientY);
+    if (from === null || slots.length < 2) return;
+    watchPress(e, {
+      onStart: (x, y) => setSheetDrag({ from, x, y, over: from }),
+      onMove: (x, y) => setSheetDrag((d) => (d ? { ...d, x, y, over: cardAt(x, y) } : d)),
+      onDrop: (x, y) => {
+        const to = cardAt(x, y);
+        if (to !== null && to !== from) reorder(slots[from].id, slots[to].id);
+        setSheetDrag(null);
+      },
+      onCancel: () => setSheetDrag(null),
+    });
+  };
 
   const handleExport = async () => {
     if (slots.length === 0 || !sheet) return;
@@ -395,7 +457,16 @@ export default function App() {
               </button>
             }
           >
-            <ThemePicker themeId={prefs.themeId} onPick={(id) => set('themeId', id)} slots={slots} fontsReady={fontsReady} />
+            <ThemePicker
+              themeId={prefs.themeId}
+              onPick={(id) => set('themeId', id)}
+              slots={slots}
+              fontsReady={fontsReady}
+              mix={prefs.custom}
+            />
+            {theme.id === CUSTOM_ID && (
+              <MixEditor mix={prefs.custom} photoColors={photoColors} onChange={(m) => set('custom', m)} />
+            )}
           </Collapsible>
           </div>
         </div>
@@ -448,8 +519,11 @@ export default function App() {
               {sheet ? (
                 <canvas
                   ref={canvasRef}
+                  onPointerDown={pressSheet}
                   aria-label={`Preview of your ${slots.length}-photo sheet`}
-                  className="max-h-[68vh] max-w-full rounded-sm object-contain shadow-[0_2px_0_rgba(29,26,36,0.2),0_14px_30px_rgba(29,26,36,0.22)]"
+                  className={`max-h-[68vh] max-w-full rounded-sm object-contain shadow-[0_2px_0_rgba(29,26,36,0.2),0_14px_30px_rgba(29,26,36,0.22)] select-none [-webkit-touch-callout:none] ${
+                    slots.length > 1 ? (sheetDrag ? 'cursor-grabbing' : 'cursor-grab') : ''
+                  }`}
                 />
               ) : (
                 <div className="relative w-full max-w-md py-6">
@@ -470,6 +544,11 @@ export default function App() {
                 </div>
               )}
             </div>
+            {slots.length > 1 && (
+              <p className="mt-2 text-center font-hand text-lg leading-tight text-ink-soft">
+                drag a photo onto another spot to move it · on a phone, press and hold first
+              </p>
+            )}
           </section>
 
           <section className="card order-4 overflow-hidden">
@@ -479,8 +558,8 @@ export default function App() {
                 value={prefs.format}
                 onChange={(v) => set('format', v)}
                 options={[
-                  { value: 'png', label: 'PNG', title: 'Lossless, bigger file' },
-                  { value: 'jpeg', label: 'JPG', title: 'Smaller file, great for sharing' },
+                  { value: 'png', label: `PNG${sizeLabel('png')}`, title: 'Lossless, bigger file' },
+                  { value: 'jpeg', label: `JPG${sizeLabel('jpeg')}`, title: 'Smaller file, great for sharing' },
                 ]}
               />
               {sheet && tooBigForPhone && (
@@ -552,7 +631,39 @@ export default function App() {
         </div>
       )}
 
+      {sheetDrag && <SheetDragOverlay drag={sheetDrag} slot={slots[sheetDrag.from]} boxOf={cardScreenBox} />}
+
       {flashKey > 0 && <div key={flashKey} className="animate-flash pointer-events-none fixed inset-0 z-[60] bg-white" />}
+    </div>
+  );
+}
+
+/** While a photo is dragged on the preview: its old spot dimmed, the drop spot ringed, and the photo under the finger. */
+function SheetDragOverlay({
+  drag,
+  slot,
+  boxOf,
+}: {
+  drag: { from: number; x: number; y: number; over: number | null };
+  slot: PhotoSlot | undefined;
+  boxOf: (i: number) => { left: number; top: number; width: number; height: number } | null;
+}) {
+  const from = boxOf(drag.from);
+  const over = drag.over !== null && drag.over !== drag.from ? boxOf(drag.over) : null;
+  if (!slot || !from) return null;
+  const ghostW = Math.max(56, Math.min(150, from.width * 0.7));
+  // Held just above the pointer, so a finger never hides the spot it's dropping on.
+  const ghostTop = drag.y - ghostW * 0.75 - 14;
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50" aria-hidden="true">
+      <div className="absolute rounded-md bg-paper/70" style={from} />
+      {over && <div className="absolute rounded-md border-4 border-dashed border-ink bg-accent/25" style={over} />}
+      <img
+        src={slot.url}
+        alt=""
+        className="print absolute rotate-3"
+        style={{ width: ghostW, left: drag.x - ghostW / 2, top: ghostTop }}
+      />
     </div>
   );
 }
