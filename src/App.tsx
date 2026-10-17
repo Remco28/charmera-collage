@@ -22,6 +22,7 @@ import { CUSTOM_ID, THEME_LIST, themeFor } from './lib/themes';
 import { tiltFor } from './lib/tilt';
 import type { PhotoSlot } from './lib/types';
 import { hashBytes } from './lib/dedupe';
+import { fitRoll } from './lib/roll';
 
 const MAX_PHOTOS = 12;
 /** Longest side of the on-screen preview. Export always renders separately. */
@@ -79,6 +80,13 @@ export default function App() {
   const [sheetDrag, setSheetDrag] = useState<{ from: number; x: number; y: number; over: number | null } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const busyRef = useRef(false);
+  /** Bumped by Clear all: an import from an older generation is canceled and must not commit. */
+  const importGen = useRef(0);
+  /** The roll as last rendered, for imports that finish long after they started. */
+  const slotsRef = useRef(slots);
+  useEffect(() => {
+    slotsRef.current = slots;
+  });
 
   useEffect(() => {
     void loadSheetFonts().then(() => setFontsReady(true));
@@ -94,7 +102,8 @@ export default function App() {
     root.setProperty('--accent-ink', body.accentInk);
   }, [body]);
 
-  const theme = themeFor(prefs.themeId, prefs.custom);
+  // Stable identity: a new object here would redraw and re-encode the preview on every render.
+  const theme = useMemo(() => themeFor(prefs.themeId, prefs.custom), [prefs.themeId, prefs.custom]);
   const variants = recipesFor(slots.length);
   const recipeIdx = recipePick.count === slots.length ? recipePick.idx : 0;
 
@@ -137,6 +146,8 @@ export default function App() {
     const capped = imgs.slice(0, room);
     if (imgs.length > room) setError(`Kept the first ${room} — a dozen max.`);
     busyRef.current = true;
+    const gen = importGen.current;
+    const canceled = () => gen !== importGen.current;
     setDecoding({ done: 0, total: capped.length });
     const known = new Set(slots.map((s) => s.hash));
     const fresh: PhotoSlot[] = [];
@@ -154,11 +165,23 @@ export default function App() {
           fresh.push(entry);
         }
       } catch {
-        setError(`${file.name} could not be read. Skipped it.`);
+        if (!canceled()) setError(`${file.name} could not be read. Skipped it.`);
+      }
+      // Cleared mid-batch: drop what this batch decoded and leave the busy/progress
+      // state alone, since it now belongs to whatever import runs next.
+      if (canceled()) {
+        [...fresh, ...dupes].forEach(release);
+        return;
       }
       setDecoding({ done: i + 1, total: capped.length });
     }
-    if (fresh.length > 0) setSlots((prev) => [...prev, ...fresh]);
+    // Room is checked again now, against the roll as it is, not as it was when the batch began.
+    const { kept, dropped } = fitRoll(slotsRef.current.length, fresh, MAX_PHOTOS);
+    dropped.forEach(release);
+    if (dropped.length > 0) {
+      setError(`The roll filled up while developing — kept ${kept.length}, left out ${dropped.length} (max ${MAX_PHOTOS}).`);
+    }
+    if (kept.length > 0) setSlots((prev) => [...prev, ...kept]);
     setPendingDupes((prev) => [...prev, ...dupes]);
     setDecoding(null);
     busyRef.current = false;
@@ -217,7 +240,11 @@ export default function App() {
         new Promise<number>((resolve) => canvas.toBlob((b) => resolve(b?.size ?? 0), type, q));
       const png = await size('image/png');
       const jpeg = await size('image/jpeg', 0.92);
-      if (!stale && png > 0 && jpeg > 0) setPreviewBytes({ png, jpeg, scale });
+      if (stale || png === 0 || jpeg === 0) return;
+      // Same numbers, same object: no re-render, so nothing can loop through here.
+      setPreviewBytes((prev) =>
+        prev && prev.png === png && prev.jpeg === jpeg && prev.scale === scale ? prev : { png, jpeg, scale },
+      );
     }, 400);
     return () => {
       stale = true;
@@ -259,6 +286,10 @@ export default function App() {
     });
 
   const clearAll = () => {
+    // Also cancels an import in progress; its photos are released when it next wakes.
+    importGen.current += 1;
+    busyRef.current = false;
+    setDecoding(null);
     slots.forEach(release);
     pendingDupes.forEach(release);
     setSlots([]);
@@ -268,10 +299,15 @@ export default function App() {
 
   const acceptDupes = () => {
     // Photos may have been added since the dupes were set aside; never go past the cap.
-    const room = Math.max(0, MAX_PHOTOS - slots.length);
-    const kept = pendingDupes.slice(0, room);
-    pendingDupes.slice(room).forEach(release);
-    if (kept.length < pendingDupes.length) setError(`Added ${kept.length} — a dozen max.`);
+    const { kept, dropped } = fitRoll(slots.length, pendingDupes, MAX_PHOTOS);
+    dropped.forEach(release);
+    if (dropped.length > 0) {
+      setError(
+        kept.length === 0
+          ? `The roll is full — remove a shot to make room for the duplicate (max ${MAX_PHOTOS}).`
+          : `Added ${kept.length} of ${pendingDupes.length} duplicates — a dozen max.`,
+      );
+    }
     setSlots((prev) => [...prev, ...kept]);
     setPendingDupes([]);
   };
@@ -616,7 +652,13 @@ export default function App() {
           <span className="flex-1 text-sm font-medium">
             {pendingDupes.length} duplicate{pendingDupes.length === 1 ? '' : 's'} set aside
           </span>
-          <button onClick={acceptDupes} className="btn bg-accent px-3 py-0.5 text-sm text-accent-ink">
+          {/* Not while a batch is developing: both would claim the same free spots on the roll. */}
+          <button
+            onClick={acceptDupes}
+            disabled={!!decoding}
+            title={decoding ? 'Wait for the batch to finish developing' : undefined}
+            className="btn bg-accent px-3 py-0.5 text-sm text-accent-ink"
+          >
             Add anyway
           </button>
           <button onClick={dismissDupes} className="btn bg-white px-3 py-0.5 text-sm">

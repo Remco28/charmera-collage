@@ -4,6 +4,7 @@ import { exifDate } from '../exif';
 import { CELL_H, CELL_W } from '../layout';
 import { DEFAULT_PREFS, parsePrefs } from '../prefs';
 import { MAX_SAFE_PIXELS, safeScale } from '../render';
+import { fitRoll } from '../roll';
 import { CONCEPTS, DEFAULT_THEME_ID, LEGACY_THEME_IDS, THEMES, THEME_LIST } from '../themes';
 
 describe('themes', () => {
@@ -98,5 +99,15 @@ describe('exifDate', () => {
   it('returns null for non-JPEG or truncated data', () => {
     expect(exifDate(new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer)).toBeNull();
     expect(exifDate(new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0, 40]).buffer)).toBeNull();
+  });
+});
+
+describe('fitRoll', () => {
+  it('keeps what fits under the cap and hands back the rest', () => {
+    expect(fitRoll(10, ['a', 'b', 'c'], 12)).toEqual({ kept: ['a', 'b'], dropped: ['c'] });
+    expect(fitRoll(0, ['a'], 12)).toEqual({ kept: ['a'], dropped: [] });
+  });
+  it('keeps nothing when the roll already went past the cap', () => {
+    expect(fitRoll(13, ['a'], 12)).toEqual({ kept: [], dropped: ['a'] });
   });
 });

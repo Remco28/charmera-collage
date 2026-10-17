@@ -513,10 +513,6 @@ export const LEGACY_THEME_IDS: Record<string, string> = {
   matcha: 'clothesline-backyard',
 };
 
-export function conceptOf(id: ConceptId): Concept {
-  return CONCEPTS.find((c) => c.id === id) ?? CONCEPTS[0];
-}
-
 /** The theme for a saved id; the custom one is rebuilt from the saved mix. */
 export function themeFor(id: string, mix: CustomMix): Theme {
   if (id === CUSTOM_ID) return customTheme(mix);
