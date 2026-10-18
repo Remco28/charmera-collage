@@ -70,3 +70,13 @@ Everything happens in the browser: photos are decoded, drawn and exported locall
 ## Deploy
 
 Pushing to `main` runs `.github/workflows/deploy.yml`: lint, test, build, then publish `dist/` to GitHub Pages (custom domain in `public/CNAME`).
+
+## License
+
+Copyright Team Remco (https://teamremco.org).
+
+Free to use, and free to build on for your own use. You may use, copy and change this for personal, educational and other noncommercial purposes under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+
+Commercial use needs permission. If you'd like to use this commercially, [open an issue](https://github.com/Remco28/charmera-collage/issues) and we can talk.
+
+Third-party libraries keep their own licenses.
