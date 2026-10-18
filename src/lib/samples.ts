@@ -11,6 +11,19 @@ export function sampleBitmaps(): Promise<ImageBitmap[]> {
 
 type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
+/** One scene drawn `scale` times larger (3 = native 1440×1080), mirrored if asked. Stand-in photos for scripts/about-shots.mjs. */
+export function sampleCanvas(i: number, scale: number, mirror = false): HTMLCanvasElement {
+  const scenes = [beach, park, party, dusk];
+  const c = document.createElement('canvas');
+  c.width = 480 * scale;
+  c.height = 360 * scale;
+  const ctx = c.getContext('2d')!;
+  if (mirror) ctx.setTransform(-scale, 0, 0, scale, c.width, 0);
+  else ctx.scale(scale, scale);
+  scenes[i % scenes.length](ctx, 480, 360);
+  return c;
+}
+
 function scene(paint: Painter): Promise<ImageBitmap> {
   const c = document.createElement('canvas');
   c.width = 480;
