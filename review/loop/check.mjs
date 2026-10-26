@@ -21,7 +21,7 @@ check(`photo limit is ${max}`, text.includes(`Up to ${max} photos`));
 const concepts = (themes.match(/^\s{4}id: '/gm) || []).length;
 const colorways = (themes.match(/key: '/g) || []).length - 1; // minus Mix Your Own
 check(`${concepts} looks, ${colorways} colorways`, text.includes(`${concepts} looks`) && text.includes(`${colorways} colorways`));
-check('16.7 MP iPhone limit', render.includes('16.7 MP') && text.includes('16.7 megapixels'));
+check('iPhone size limit is real', render.includes('16.7 MP') && text.includes('also offer a phone size'));
 check('1440 × 1080 card size', /1440\s*×\s*1080/.test(text) && /1440/.test(readFileSync('README.md', 'utf8')));
 
 // Frank's story: pulled-out quotes are word for word (filler aside).
@@ -34,7 +34,7 @@ check('found the pulled quotes', quotes.length === 2, `${quotes.length} found`);
 const features = plain(body.slice(body.indexOf('How the minute goes'), body.indexOf('Closing the loop')));
 check('no "I" in the feature and how-to text', !/\bI\b|\bI'm\b|\bmy\b/.test(features));
 check('no exclamation marks in page text', !text.includes('!'));
-check('Charmera explained before the story', text.indexOf('Kodak') > -1 && text.indexOf('Kodak') < text.indexOf('real camera'));
+check('Charmera explained before the story', text.indexOf('Kodak') > -1 && text.indexOf('Kodak') < text.indexOf('actual working camera'));
 
 // Images exist and say what they show.
 const imgs = [...body.matchAll(/<img [^>]*>/g)].map((m) => m[0]);
