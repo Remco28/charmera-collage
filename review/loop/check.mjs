@@ -22,7 +22,7 @@ const concepts = (themes.match(/^\s{4}id: '/gm) || []).length;
 const colorways = (themes.match(/key: '/g) || []).length - 1; // minus Mix Your Own
 check(`${concepts} looks, ${colorways} colorways`, text.includes(`${concepts} looks`) && text.includes(`${colorways} colorways`));
 check('iPhone size limit is real', render.includes('16.7 MP') && text.includes('also offer a phone size'));
-check('1440 × 1080 card size', /1440\s*×\s*1080/.test(text) && /1440/.test(readFileSync('README.md', 'utf8')));
+check('no-crop claim matches the README', text.includes('Nothing is cropped') && /No cropping, no resizing/.test(readFileSync('README.md', 'utf8')));
 
 // Frank's story: pulled-out quotes are word for word (filler aside).
 const said = plain(transcript).replace(/\buh /g, '');
